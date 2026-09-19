@@ -11,6 +11,7 @@ import { ProductDNA, TweetOpportunity, OpportunityBadge } from '@/types';
 import ProductDnaModal from '@/components/ProductDnaModal';
 import confetti from 'canvas-confetti';
 import { 
+  Crosshair,
   Target, 
   Flame, 
   HelpCircle, 
@@ -102,13 +103,12 @@ export default function CommandCenterPage() {
       <header className="h-16 border-b border-[#1c2230] bg-[#0c1017]/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-30 shrink-0">
         {/* Brand & Mode */}
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#00f5a0] to-[#00d2ff] p-0.5">
-              <div className="flex h-full w-full items-center justify-center rounded-[6px] bg-[#07080c]">
-                <Target className="h-4 w-4 text-[#00f5a0]" />
-              </div>
-            </div>
-            <span className="text-lg font-bold tracking-tight text-white font-mono">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <span className="relative grid size-8 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
+              <Crosshair className="size-4 text-[#00f5a0]" strokeWidth={2.5} />
+              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
+            </span>
+            <span className="font-mono text-lg font-bold tracking-tight text-white">
               snype<span className="text-[#00f5a0]">X</span>
             </span>
           </Link>

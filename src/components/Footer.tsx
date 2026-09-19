@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Target, ArrowUpRight } from 'lucide-react';
+import { Crosshair, ArrowUpRight } from 'lucide-react';
 
 function XLogo({ className = "h-3.5 w-3.5" }: { className?: string }) {
   return (
@@ -65,7 +65,8 @@ export default function Footer() {
           <div className="flex flex-col gap-3">
             <Link href="/" className="flex items-center gap-2.5 group w-fit">
               <span className="relative grid size-9 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
-                <Target className="size-4.5 text-[#00f5a0]" />
+                <Crosshair className="size-4.5 text-[#00f5a0]" strokeWidth={2.5} />
+              <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
               </span>
               <span className="font-mono text-xl font-bold tracking-tight text-white">
                 snype<span className="text-[#00f5a0]">X</span>

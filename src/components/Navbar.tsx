@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Target, Zap, ArrowRight, Sparkles } from 'lucide-react';
+import { Crosshair, Target, Zap, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function Navbar() {
   return (
@@ -10,11 +10,10 @@ export default function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#00f5a0] to-[#00d2ff] p-0.5 shadow-[0_0_15px_rgba(0,245,160,0.3)]">
-            <div className="flex h-full w-full items-center justify-center rounded-[7px] bg-[#07080c]">
-              <Target className="h-5 w-5 text-[#00f5a0] transition-transform group-hover:rotate-45 duration-300" />
-            </div>
-          </div>
+          <span className="relative grid size-9 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
+            <Crosshair className="size-4.5 text-[#00f5a0]" strokeWidth={2.5} />
+            <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
+          </span>
           <div className="flex items-baseline gap-1">
             <span className="text-xl font-bold tracking-tight text-white font-mono">snype<span className="text-[#00f5a0]">X</span></span>
             <span className="rounded-full bg-[#00f5a0]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#00f5a0] border border-[#00f5a0]/30">
