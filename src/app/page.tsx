@@ -100,9 +100,7 @@ export default function LandingPage() {
 
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-            <a href="#radar" className="transition-colors hover:text-white">Radar</a>
             <a href="#studio" className="transition-colors hover:text-white">Reply Studio</a>
-            <a href="#compare" className="transition-colors hover:text-white">Comparison</a>
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <a href="#faq" className="transition-colors hover:text-white">FAQ</a>
           </nav>
@@ -139,25 +137,11 @@ export default function LandingPage() {
         {mobileMenuOpen && (
           <nav className="grid gap-1 border-t border-white/[0.08] bg-[#0c1018] p-4 text-sm md:hidden">
             <a
-              href="#radar"
-              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Radar
-            </a>
-            <a
               href="#studio"
               className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
               onClick={() => setMobileMenuOpen(false)}
             >
               Reply Studio
-            </a>
-            <a
-              href="#compare"
-              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Comparison
             </a>
             <a
               href="#pricing"

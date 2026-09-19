@@ -24,11 +24,8 @@ export default function Navbar() {
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-          <a href="#demo" className="hover:text-white transition-colors">
-            Interactive Demo
-          </a>
-          <a href="#features" className="hover:text-white transition-colors">
-            Features
+          <a href="#studio" className="hover:text-white transition-colors">
+            Reply Studio
           </a>
           <a href="#pricing" className="hover:text-white transition-colors">
             Pricing
