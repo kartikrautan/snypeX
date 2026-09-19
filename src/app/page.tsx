@@ -1,270 +1,511 @@
-﻿'use client';
+'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
+import { 
+  Crosshair, 
+  Sparkles, 
+  Target, 
+  Radio, 
+  ArrowRight, 
+  Check, 
+  Menu, 
+  X, 
+  ChevronDown
+} from 'lucide-react';
 import InteractiveDemo from '@/components/InteractiveDemo';
 import PricingSection from '@/components/PricingSection';
-import { 
-  Target, 
-  Flame, 
-  ShieldCheck, 
-  TrendingUp, 
-  ArrowRight, 
-  CheckCircle2, 
-  HelpCircle, 
-  Zap, 
-  Sparkles,
-  BarChart3,
-  Users,
-  Compass
-} from 'lucide-react';
+import Footer from '@/components/Footer';
+
+const FAQS = [
+  {
+    q: "Does snypeX post automatically on my X account?",
+    a: "No. snypeX is built on a high-IQ, human-in-the-loop philosophy. We spot the highest-intent opportunities in the 30–90 minute window and draft 3 tailored founder-voice angles. You review, edit in 5 seconds, and 1-click post. This completely eliminates shadowban risks and prevents generic AI slop."
+  },
+  {
+    q: "Will the replies sound like generic AI fluff?",
+    a: "Zero canned phrases like 'Great post!' or 'Couldn't agree more!'. snypeX uses your calibrated Product DNA (your unique value proposition, niche expertise, and case study data) along with anti-cliché heuristics to produce replies that sound like a veteran founder chiming in with real substance."
+  },
+  {
+    q: "How fast does the opportunity radar detect breakout tweets?",
+    a: "Our radar monitors niche velocity curves in real time. We flag posts when they are 30 to 90 minutes old—the golden window where engagement velocity is exponential, but the reply section isn't yet saturated with 500 competing comments."
+  },
+  {
+    q: "What is Product DNA?",
+    a: "Product DNA is your brand's secret weapon in snypeX. You provide your product name, one-sentence value proposition, target customer pain points, and optional proof points. snypeX weaves this context naturally into soft plugs and data-driven replies without ever sounding salesy."
+  },
+  {
+    q: "Can I track more than one niche or product?",
+    a: "Yes! The Pro plan lets you track up to 3 separate niches simultaneously, while the Agency/Studio tier supports unlimited niches and multiple Product DNA profiles for managing several products or client accounts."
+  }
+];
+
+const COMPARISON_ROWS = [
+  {
+    dimension: "Discovery Speed",
+    manual: "Hours of endless doomscrolling",
+    bots: "Fast but spammy / 24h old threads",
+    snypex: "Golden 30–90m Freshness Window",
+    highlight: true
+  },
+  {
+    dimension: "Reply Quality",
+    manual: "Authentic, but exhausting to maintain",
+    bots: "Generic AI slop ('Great insights!')",
+    snypex: "Anti-Cliché Founder Voice + Product DNA",
+    highlight: true
+  },
+  {
+    dimension: "Intent Filtering",
+    manual: "Pure guesswork and luck",
+    bots: "Keyword matching without intent",
+    snypex: "Purchase intent, debates & tool queries",
+    highlight: true
+  },
+  {
+    dimension: "Account Safety",
+    manual: "100% Safe",
+    bots: "High risk of X shadowbans/suspension",
+    snypex: "100% Human-in-the-loop (1-Click Post)",
+    highlight: true
+  },
+  {
+    dimension: "Conversion to Traffic",
+    manual: "Low volume due to time limits",
+    bots: "Damages brand reputation",
+    snypex: "Top-comment positioning drives qualified leads",
+    highlight: true
+  }
+];
 
 export default function LandingPage() {
-  const scrollToDemo = () => {
-    const demoElement = document.getElementById('demo');
-    if (demoElement) {
-      demoElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-slate-100 selection:bg-[#00f5a0] selection:text-[#07080c]">
-      <Navbar />
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-10 pb-12 md:pt-16 md:pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
-        {/* Subtle Background Glows */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-[#00f5a0]/15 to-[#00d2ff]/10 blur-[130px] rounded-full pointer-events-none -z-10" />
-
-        {/* Eyebrow */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#00f5a0]/30 bg-[#00f5a0]/10 px-3.5 py-1 text-xs font-semibold text-[#00f5a0] font-mono mb-6 shadow-[0_0_15px_rgba(0,245,160,0.2)]">
-          <Zap className="h-3.5 w-3.5" />
-          <span>The #1 Organic Inbound Engine on X</span>
-        </div>
-
-        {/* Main Headline */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white max-w-5xl mx-auto leading-[1.1] sm:leading-[1.1]">
-          Turn Other Creators&apos; Viral Reach Into Your{' '}
-          <span className="gradient-text-neon">Customer Pipeline.</span>
-        </h1>
-
-        {/* Subhead */}
-        <p className="mt-6 text-base sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
-          Posting original tweets with zero followers is like screaming into an empty room. 
-          <strong className="text-white font-semibold"> snypeX</strong> spots breakout posts in your niche within their first 90 minutes and crafts 3 high-authority, data-backed replies that win the top comment spot.
-        </p>
-
-        {/* CTAs */}
-        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/app"
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-7 py-3.5 text-sm font-bold text-[#07080c] shadow-[0_0_25px_rgba(0,245,160,0.35)] hover:opacity-95 hover:scale-[1.02] transition-all"
-          >
-            <span>Start Snyping Free</span>
-            <ArrowRight className="h-4 w-4" />
+    <div className="min-h-screen bg-[#080a0f] text-slate-100 flex flex-col selection:bg-[#00f5a0]/30 selection:text-[#00f5a0]">
+      {/* Header / Navbar */}
+      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#080a0f]/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <span className="relative grid size-9 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
+              <Crosshair className="size-4.5 text-[#00f5a0]" strokeWidth={2.5} />
+              <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
+            </span>
+            <span className="font-mono text-xl font-bold tracking-tight text-white">
+              snype<span className="text-[#00f5a0]">X</span>
+            </span>
           </Link>
+
+          {/* Desktop Nav Links */}
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+            <a href="#radar" className="transition-colors hover:text-white">Radar</a>
+            <a href="#studio" className="transition-colors hover:text-white">Reply Studio</a>
+            <a href="#compare" className="transition-colors hover:text-white">Comparison</a>
+            <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
+            <a href="#faq" className="transition-colors hover:text-white">FAQ</a>
+          </nav>
+
+          {/* CTA Actions */}
+          <div className="hidden sm:flex items-center gap-3">
+            <Link
+              href="/app"
+              className="text-xs font-semibold text-slate-300 hover:text-white px-3 py-2 transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/app"
+              className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-4 py-2 text-xs font-bold text-[#080a0f] shadow-[0_0_20px_rgba(0,245,160,0.3)] hover:opacity-95 hover:shadow-[0_0_25px_rgba(0,245,160,0.5)] transition-all"
+            >
+              <span>Start Free</span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {/* Mobile Menu Button */}
           <button
             type="button"
-            onClick={scrollToDemo}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl border border-[#222a3a] bg-[#111622]/80 px-7 py-3.5 text-sm font-semibold text-slate-200 hover:bg-[#182030] hover:border-slate-600 transition-all cursor-pointer"
+            className="sm:hidden p-2 text-slate-400 hover:text-white"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Navigation"
           >
-            <span>Live Interactive Demo</span>
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
 
-        {/* Metrics Banner */}
-        <div className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8 border-t border-[#1a2130]">
-          <div className="text-left">
-            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">60K+</div>
-            <div className="text-xs text-slate-400 mt-0.5">Free monthly impressions</div>
-          </div>
-          <div className="text-left">
-            <div className="text-2xl sm:text-3xl font-extrabold text-[#00f5a0] font-mono">&lt; 90m</div>
-            <div className="text-xs text-slate-400 mt-0.5">Viral breakout detection</div>
-          </div>
-          <div className="text-left">
-            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">0% Slop</div>
-            <div className="text-xs text-slate-400 mt-0.5">Banned bot clichÃ©s</div>
-          </div>
-          <div className="text-left">
-            <div className="text-2xl sm:text-3xl font-extrabold text-[#00d2ff] font-mono">1-Click</div>
-            <div className="text-xs text-slate-400 mt-0.5">Instant post to X</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Demo Section */}
-      <section id="demo" className="scroll-mt-16 pt-4 pb-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-        <div className="text-center mb-4">
-          <span className="rounded-full bg-[#00d2ff]/10 px-3 py-1 text-xs font-semibold text-[#00d2ff] border border-[#00d2ff]/30 font-mono uppercase tracking-wider">
-            Hands-on Experience
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white mt-3">
-            See the 3-Angle Strategy in Action
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
-            Switch between sample products or pick different breakout tweets to see how snypeX calibrates authority.
-          </p>
-        </div>
-
-        <InteractiveDemo />
-      </section>
-
-      {/* Feature Pillars */}
-      <section id="features" className="scroll-mt-24 py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="rounded-full bg-[#00f5a0]/10 px-3 py-1 text-xs font-semibold text-[#00f5a0] border border-[#00f5a0]/30 font-mono uppercase tracking-wider">
-            Why snypeX Wins
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-4 tracking-tight">
-            Built for Founders Who Hate Sounding Like Bots.
-          </h2>
-          <p className="text-slate-400 mt-3 text-base">
-            Every feature is engineered to protect your personal brand while turning the comments section into an inbound lead machine.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Card 1 */}
-          <div className="rounded-2xl border border-[#1d2434] bg-[#0f131c]/70 p-7 hover:border-[#00f5a0]/40 transition-colors">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00f5a0]/10 border border-[#00f5a0]/30 text-[#00f5a0] mb-5">
-              <Flame className="h-5 w-5" />
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <nav className="grid gap-1 border-t border-white/[0.08] bg-[#0c1018] p-4 text-sm md:hidden">
+            <a
+              href="#radar"
+              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Radar
+            </a>
+            <a
+              href="#studio"
+              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Reply Studio
+            </a>
+            <a
+              href="#compare"
+              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Comparison
+            </a>
+            <a
+              href="#pricing"
+              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Pricing
+            </a>
+            <a
+              href="#faq"
+              className="rounded-lg px-3 py-2.5 text-slate-300 hover:bg-white/[0.05] hover:text-white"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </a>
+            <div className="pt-2 mt-2 border-t border-white/[0.08] flex gap-2">
+              <Link
+                href="/app"
+                className="w-full text-center py-2.5 text-xs font-bold rounded-lg bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-[#080a0f]"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Launch App Free
+              </Link>
             </div>
-            <h3 className="text-lg font-bold text-white">Breakout Velocity Radar</h3>
-            <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
-              Timing is 90% of the game on X. snypeX flags posts scoring 100+ likes/hr in their first 90 minutes, allowing you to comment before the thread saturates.
-            </p>
-          </div>
+          </nav>
+        )}
+      </header>
 
-          {/* Card 2 */}
-          <div className="rounded-2xl border border-[#1d2434] bg-[#0f131c]/70 p-7 hover:border-[#00d2ff]/40 transition-colors">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00d2ff]/10 border border-[#00d2ff]/30 text-[#00d2ff] mb-5">
-              <ShieldCheck className="h-5 w-5" />
+      <main className="flex-1">
+        {/* HERO SECTION */}
+        <section id="top" className="relative overflow-hidden pt-8 pb-16 sm:pt-14 sm:pb-24">
+          {/* Subtle Ambient Background Gradients */}
+          <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[700px] rounded-full bg-[#00f5a0]/10 blur-[120px]" />
+          <div className="pointer-events-none absolute right-0 top-1/3 h-[400px] w-[500px] rounded-full bg-[#00d2ff]/5 blur-[100px]" />
+
+          <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+            {/* Left Column: Hero Pitch */}
+            <div>
+              {/* Pulsing radar pill */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-[#10141f] px-3.5 py-1.5 text-xs font-medium text-slate-300 shadow-inner">
+                <span className="relative flex size-2">
+                  <span className="signal-pulse absolute size-2 rounded-full bg-[#00f5a0]" />
+                  <span className="relative size-2 rounded-full bg-[#00f5a0]" />
+                </span>
+                <span>Live radar &bull; 3 high-intent signals in your niche now</span>
+              </div>
+
+              <h1 className="mt-6 font-mono text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl text-white leading-[1.08]">
+                Get into the conversation{' '}
+                <span className="bg-gradient-to-r from-[#00f5a0] via-[#00d2ff] to-[#00f5a0] bg-clip-text text-transparent">
+                  before it peaks.
+                </span>
+              </h1>
+
+              <p className="mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-slate-400">
+                snypeX spots breakout posts in your niche within their first 90 minutes, then drafts high-IQ, founder-voice replies that claim the top comment spot and turn views into customers.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+                <Link
+                  href="#pricing"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-6 py-3.5 text-sm font-bold text-[#080a0f] shadow-[0_0_25px_rgba(0,245,160,0.35)] hover:opacity-95 hover:shadow-[0_0_35px_rgba(0,245,160,0.5)] transition-all"
+                >
+                  <span>Start Spotting Signals</span>
+                  <ArrowRight className="size-4" />
+                </Link>
+                <a
+                  href="#studio"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#111622] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#182030] hover:border-slate-600 transition-all"
+                >
+                  <Sparkles className="size-4 text-[#00f5a0]" />
+                  <span>Try Reply Studio</span>
+                </a>
+              </div>
+
+              {/* Feature Value Pills */}
+              <div className="mt-9 flex flex-wrap items-center gap-y-2 gap-x-5 text-xs text-slate-400 font-mono">
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-[#00f5a0]" /> 30–90 min Golden Window
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-[#00f5a0]" /> Intent-Tagged Buying Leads
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-[#00f5a0]" /> Zero Generic AI Slop
+                </span>
+              </div>
             </div>
-            <h3 className="text-lg font-bold text-white">Strict Anti-Slop Filter</h3>
-            <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
-              We strictly forbid phrases like &quot;Great post!&quot; or &quot;Couldn&apos;t agree more!&quot;. Replies cite real benchmark data and studies so you establish domain authority.
-            </p>
-          </div>
 
-          {/* Card 3 */}
-          <div className="rounded-2xl border border-[#1d2434] bg-[#0f131c]/70 p-7 hover:border-purple-400/40 transition-colors">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 mb-5">
-              <HelpCircle className="h-5 w-5" />
+            {/* Right Column: Floating Live Radar Mockup */}
+            <div className="float-soft relative rounded-3xl border border-white/[0.12] bg-[#0d111a] p-5 shadow-2xl backdrop-blur-xl">
+              {/* Radar Card Header */}
+              <div className="mb-4 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-xs font-bold text-white font-mono uppercase tracking-wider">
+                  <Radio className="size-4 text-[#00f5a0] animate-pulse" /> Opportunity Radar
+                </span>
+                <span className="rounded-full border border-white/[0.08] bg-[#141a27] px-3 py-1 text-[11px] font-mono text-[#00f5a0]">
+                  SaaS & AI Devs
+                </span>
+              </div>
+
+              {/* Radar Graphical Display */}
+              <div className="relative h-48 overflow-hidden rounded-2xl bg-[#07090e] border border-white/[0.06]">
+                {/* Concentric rings */}
+                {['size-40', 'size-28', 'size-16'].map((s) => (
+                  <span
+                    key={s}
+                    className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500/15 ${s}`}
+                  />
+                ))}
+                {/* Crosshairs */}
+                <span className="absolute inset-x-0 top-1/2 h-px bg-emerald-500/10" />
+                <span className="absolute inset-y-0 left-1/2 w-px bg-emerald-500/10" />
+                {/* Radar sweep */}
+                <span className="radar-sweep absolute left-1/2 top-1/2 h-24 w-px bg-gradient-to-b from-[#00f5a0] via-[#00f5a0]/40 to-transparent" />
+                {/* Detected target blip */}
+                <span className="absolute left-[62%] top-[34%] size-3 rounded-full bg-[#00f5a0] shadow-[0_0_12px_#00f5a0]">
+                  <span className="signal-pulse absolute inset-0 rounded-full bg-[#00f5a0]" />
+                </span>
+                <span className="absolute left-4 top-3 text-[10px] font-mono font-semibold uppercase tracking-widest text-[#00f5a0]">
+                  TRACKING MOMENTUM
+                </span>
+                <span className="absolute bottom-3 right-4 font-mono text-[10px] text-slate-400">
+                  48m ago &bull; 120 likes/hr
+                </span>
+              </div>
+
+              {/* Live Signal Ticker List */}
+              <div className="mt-4 space-y-2">
+                {[
+                  { handle: "@levelsio", text: "Most SaaS pricing pages are fundamentally broken.", tag: "Hot", tagBg: "bg-[#00f5a0]/15 text-[#00f5a0]", stats: "342 likes • 48m ago" },
+                  { handle: "@tibo_maker", text: "What tool do you use to record crisp product demos?", tag: "Lead", tagBg: "bg-amber-400/20 text-amber-300", stats: "High buyer intent • 62m ago" },
+                  { handle: "@shl", text: "Bootstrapping is dead in 2026. Change my mind.", tag: "Debate", tagBg: "bg-purple-400/20 text-purple-300", stats: "High virality • 75m ago" }
+                ].map((item) => (
+                  <div key={item.handle} className="flex items-center gap-3 rounded-xl border border-white/[0.05] bg-[#111622] p-3 transition-colors hover:border-[#00f5a0]/40">
+                    <span className="grid size-8 place-items-center rounded-lg bg-[#182030] text-xs font-mono font-bold text-white">
+                      {item.handle.slice(1, 4).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium text-slate-200">
+                        <span className="text-[#00d2ff] mr-1">{item.handle}</span> &ldquo;{item.text}&rdquo;
+                      </p>
+                      <span className="text-[11px] text-slate-500 font-mono">{item.stats}</span>
+                    </div>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold font-mono ${item.tagBg}`}>
+                      {item.tag}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h3 className="text-lg font-bold text-white">Lead Question Hunter</h3>
-            <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
-              Our radar scans for buying intentâ€”detecting founders asking &quot;What software do you guys use for X?&quot; so you can provide helpful solutions and win customers.
-            </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Comparison: Manual vs Generic Bot vs snypeX */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-        <div className="rounded-2xl border border-[#202738] bg-[#0d1017] p-6 sm:p-10 shadow-xl">
-          <h3 className="text-xl sm:text-2xl font-bold text-white text-center mb-4">
-            How snypeX Compares
-          </h3>
+        {/* RADAR VALUE PROPOSITIONS & STATS */}
+        <section id="radar" className="relative border-y border-white/[0.08] bg-[#0c0f17] py-20 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="max-w-3xl">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#00f5a0] font-semibold">
+                Not another content scheduler
+              </span>
+              <h2 className="mt-2 font-mono text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight">
+                snypeX finds conversations already earning attention—and earns you a place in them.
+              </h2>
+            </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b border-[#1b2230] text-slate-400">
-                  <th className="pb-3 font-medium">Metric / Feature</th>
-                  <th className="pb-3 font-medium">Manual Replying</th>
-                  <th className="pb-3 font-medium">Generic AI Bots</th>
-                  <th className="pb-3 font-bold text-[#00f5a0]">snypeX</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#171d29] text-slate-300">
-                <tr>
-                  <td className="py-4 font-semibold text-white">Time per 10 replies</td>
-                  <td className="py-4 text-slate-400">90 minutes</td>
-                  <td className="py-4 text-slate-400">1 minute (auto-spam)</td>
-                  <td className="py-4 font-bold text-[#00f5a0]">4 minutes (reviewed)</td>
-                </tr>
-                <tr>
-                  <td className="py-4 font-semibold text-white">Reply Quality</td>
-                  <td className="py-4 text-slate-400">High (if energetic)</td>
-                  <td className="py-4 text-red-400">Obvious ChatGPT slop</td>
-                  <td className="py-4 font-bold text-[#00f5a0]">Data & study backed</td>
-                </tr>
-                <tr>
-                  <td className="py-4 font-semibold text-white">Risk of Account Ban</td>
-                  <td className="py-4 text-slate-400">Zero</td>
-                  <td className="py-4 text-red-400">Very High (Automated)</td>
-                  <td className="py-4 font-bold text-[#00f5a0]">Zero (Human in loop)</td>
-                </tr>
-                <tr>
-                  <td className="py-4 font-semibold text-white">Timing Optimization</td>
-                  <td className="py-4 text-slate-400">Random luck</td>
-                  <td className="py-4 text-slate-400">No velocity checks</td>
-                  <td className="py-4 font-bold text-[#00f5a0]">Sub-90m Velocity Radar</td>
-                </tr>
-              </tbody>
-            </table>
+            {/* 3 Core Value Cards */}
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/[0.08] bg-[#111622] p-6 transition-transform hover:-translate-y-1 hover:border-[#00f5a0]/40">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#00f5a0]/10 text-[#00f5a0] border border-[#00f5a0]/20">
+                  <Crosshair className="size-5" />
+                </div>
+                <h3 className="mt-5 font-mono text-lg font-bold text-white">Never miss the window</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Freshness scoring catches posts between 30 and 90 minutes old, allowing you to secure the top-ranked comment before hundreds of replies flood the thread.
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-white/[0.08] bg-[#111622] p-6 transition-transform hover:-translate-y-1 hover:border-[#00f5a0]/40">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#00d2ff]/10 text-[#00d2ff] border border-[#00d2ff]/20">
+                  <Sparkles className="size-5" />
+                </div>
+                <h3 className="mt-5 font-mono text-lg font-bold text-white">No generic AI slop</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Calibrated with your Product DNA, snypeX replaces empty praise (&ldquo;Great post!&rdquo;) with actionable data drops, constructive debate angles, and genuine insight.
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-white/[0.08] bg-[#111622] p-6 transition-transform hover:-translate-y-1 hover:border-[#00f5a0]/40">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                  <Target className="size-5" />
+                </div>
+                <h3 className="mt-5 font-mono text-lg font-bold text-white">Find buying intent</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  High-intent queries like &ldquo;what tool should I use?&rdquo; and &ldquo;how do founders solve X?&rdquo; are prioritized over broad, low-value industry chatter.
+                </p>
+              </article>
+            </div>
+
+            {/* 4-Metric Banner */}
+            <div className="mt-14 grid gap-8 rounded-2xl border border-white/[0.08] bg-[#10141f] p-8 md:grid-cols-4 md:p-10">
+              <div>
+                <p className="font-mono text-lg font-bold text-white">Built for shipping founders, not growth gurus.</p>
+              </div>
+              <div>
+                <strong className="font-mono text-4xl font-extrabold text-[#00f5a0]">42m</strong>
+                <p className="mt-1 text-xs text-slate-400 font-mono">Average time to spot &amp; reply</p>
+              </div>
+              <div>
+                <strong className="font-mono text-4xl font-extrabold text-[#00d2ff]">3.4x</strong>
+                <p className="mt-1 text-xs text-slate-400 font-mono">Average impression multiple gained</p>
+              </div>
+              <div>
+                <strong className="font-mono text-4xl font-extrabold text-white">1 click</strong>
+                <p className="mt-1 text-xs text-slate-400 font-mono">From draft approval to live on X</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Pricing Section */}
-      <PricingSection />
-
-      {/* FAQ Section */}
-      <section id="faq" className="scroll-mt-24 py-16 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto border-t border-[#1b2230]">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Frequently Asked Questions
-          </h2>
-        </div>
-
-        <div className="space-y-6">
-          <div className="rounded-xl border border-[#1c2230] bg-[#0c1017] p-5">
-            <h4 className="text-sm font-bold text-white">
-              Can my Twitter/X account get banned using snypeX?
-            </h4>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              No. snypeX is <strong>not</strong> an auto-posting headless bot. It operates as your research copilot. You choose the angle, review or edit the copy, and launch via native X Intent with one click.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[#1c2230] bg-[#0c1017] p-5">
-            <h4 className="text-sm font-bold text-white">
-              How does the 1-click Post to X button work?
-            </h4>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              It uses Twitter&apos;s native web intent URL (`x.com/intent/tweet`). When you click it, X opens on your screen with the exact rebuttal and citation pre-loaded in the composer.
+        {/* INTERACTIVE DEMO / REPLY STUDIO */}
+        <section id="studio" className="relative py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="rounded-full bg-[#00f5a0]/10 px-3 py-1 text-xs font-semibold text-[#00f5a0] border border-[#00f5a0]/30 font-mono uppercase tracking-wider">
+              Interactive Reply Studio
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-4 tracking-tight font-mono">
+              Experience the Anti-Clich&eacute; Engine.
+            </h2>
+            <p className="text-slate-400 mt-3 text-base sm:text-lg">
+              Switch sample product personas, browse real breakout opportunities, and see how snypeX crafts high-authority replies designed to trigger profile visits.
             </p>
           </div>
 
-          <div className="rounded-xl border border-[#1c2230] bg-[#0c1017] p-5">
-            <h4 className="text-sm font-bold text-white">
-              Can I monitor custom creators or competitor accounts?
-            </h4>
-            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-              Yes! In the Command Center, you can add any X handle or keyword in your niche. snypeX will monitor their tweets and notify you when a post gains breakout traction.
-            </p>
-          </div>
-        </div>
-      </section>
+          {/* Interactive Demo Component */}
+          <InteractiveDemo />
+        </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[#1a2130] py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-[#00f5a0]" />
-          <span className="font-bold text-white font-mono">snypeX</span>
-          <span>Â© {new Date().getFullYear()} â€” Inbound distribution for modern founders.</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <Link href="/app" className="hover:text-slate-300">Launch App</Link>
-          <a href="#pricing" className="hover:text-slate-300">Pricing</a>
-          <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">Twitter / X</a>
-        </div>
-      </footer>
+        {/* COMPARISON SECTION */}
+        <section id="compare" className="relative border-y border-white/[0.08] bg-[#0c0f17] py-20 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="text-center max-w-3xl mx-auto mb-12">
+              <span className="text-xs font-mono uppercase tracking-widest text-[#00f5a0] font-semibold">
+                The Unfair Timing Advantage
+              </span>
+              <h2 className="mt-2 font-mono text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                Manual hustle is slow. Bots get banned. snypeX is precise.
+              </h2>
+              <p className="mt-3 text-sm sm:text-base text-slate-400">
+                Why thousands of founders are moving from broad outbound ads to precision inbound comments.
+              </p>
+            </div>
+
+            {/* Comparison Table */}
+            <div className="overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#0e121b] shadow-xl">
+              <table className="w-full min-w-[700px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.08] bg-[#141924] font-mono text-xs uppercase tracking-wider text-slate-300">
+                    <th className="p-5 font-bold">Approach Dimension</th>
+                    <th className="p-5 font-bold text-slate-400">Manual Reply Hustle</th>
+                    <th className="p-5 font-bold text-slate-400">Generic AI Bots</th>
+                    <th className="p-5 font-bold text-[#00f5a0] bg-[#00f5a0]/10">snypeX Advantage</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.06]">
+                  {COMPARISON_ROWS.map((row) => (
+                    <tr key={row.dimension} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="p-5 font-medium font-mono text-white text-xs">{row.dimension}</td>
+                      <td className="p-5 text-slate-400 text-xs">{row.manual}</td>
+                      <td className="p-5 text-slate-400 text-xs">{row.bots}</td>
+                      <td className="p-5 font-semibold text-[#00f5a0] bg-[#00f5a0]/5 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Check className="size-4 shrink-0 text-[#00f5a0]" />
+                          <span>{row.snypex}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* PRICING SECTION */}
+        <PricingSection />
+
+        {/* FAQ SECTION */}
+        <section id="faq" className="relative border-t border-white/[0.08] bg-[#0c0f17] py-20 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+            <div>
+              <span className="text-xs font-mono uppercase tracking-widest text-[#00f5a0] font-semibold">
+                Frequently Asked Questions
+              </span>
+              <h2 className="mt-2 font-mono text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                Clear answers. No growth-speak.
+              </h2>
+              <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+                Everything you need to know about the product, safety, radar speed, and how snypeX protects your reputation.
+              </p>
+              <div className="mt-8">
+                <Link
+                  href="/app"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-5 py-3 text-xs font-bold text-[#080a0f] shadow-[0_0_20px_rgba(0,245,160,0.3)] hover:opacity-95 transition-all"
+                >
+                  <span>Launch Free Trial</span>
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Accordion List */}
+            <div className="space-y-3">
+              {FAQS.map((faq, idx) => {
+                const isOpen = openFaq === idx;
+                return (
+                  <div
+                    key={faq.q}
+                    className="rounded-xl border border-white/[0.08] bg-[#111622] overflow-hidden transition-all"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : idx)}
+                      className="flex w-full items-center justify-between p-5 text-left text-sm font-bold text-white hover:text-[#00f5a0] transition-colors"
+                    >
+                      <span className="font-mono">{faq.q}</span>
+                      <ChevronDown
+                        className={`size-4 shrink-0 text-slate-400 transition-transform duration-200 ${
+                          isOpen ? 'rotate-180 text-[#00f5a0]' : ''
+                        }`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pb-5 pt-1 text-xs sm:text-sm leading-relaxed text-slate-400 border-t border-white/[0.04]">
+                        {faq.a}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* MASTRA.AI-STYLE PREMIUM FOOTER */}
+      <Footer />
     </div>
   );
 }
-
-
