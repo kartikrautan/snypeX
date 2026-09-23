@@ -2,10 +2,9 @@ import { IXSignalProvider, NicheAnalysis } from '../types';
 import { TweetOpportunity, OpportunityBadge } from '@/types';
 
 export class TwitterApiIoProvider implements IXSignalProvider {
-  name = 'TwitterAPI.io / 3rd Party Proxy';
+  name = 'TwitterAPI.io';
 
-  private apiKey = process.env.TWITTER_API_IO_KEY || process.env.X_3RD_PARTY_KEY || '';
-  private endpoint = process.env.TWITTER_API_IO_ENDPOINT || 'https://api.twitterapi.io/twitter/tweet/advanced_search';
+  private apiKey = process.env.TWITTER_API_IO_KEY || process.env.X_API_KEY || process.env.X_3RD_PARTY_KEY || '';
 
   isAvailable(): boolean {
     return Boolean(this.apiKey && this.apiKey.trim().length > 5);
@@ -16,62 +15,80 @@ export class TwitterApiIoProvider implements IXSignalProvider {
       return [];
     }
 
+    const query = analysis.xSearchQuery || analysis.originalQuery;
+
     try {
-      const response = await fetch(this.endpoint, {
-        method: 'POST',
+      // twitterapi.io advanced search GET endpoint
+      const url = `https://api.twitterapi.io/twitter/tweet/advanced_search?query=${encodeURIComponent(query)}&queryType=Latest`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': this.apiKey
+          'x-api-key': this.apiKey,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          query: analysis.xSearchQuery,
-          queryType: 'Latest'
-        }),
         next: { revalidate: 30 }
       });
 
       if (!response.ok) {
-        console.warn('TwitterAPI.io request failed with status', response.status);
+        console.warn('TwitterAPI.io request returned status:', response.status);
         return [];
       }
 
       const json = await response.json();
-      const rawTweets = json.tweets || json.data || [];
+      const rawTweets = json.tweets || json.data || json.results || (Array.isArray(json) ? json : []);
+      
+      if (!rawTweets || rawTweets.length === 0) {
+        return [];
+      }
+
       const signals: TweetOpportunity[] = [];
       const now = Date.now();
 
       for (const item of rawTweets.slice(0, maxResults)) {
-        const tweetText = item.text || '';
-        const createdAt = item.createdAt ? new Date(item.createdAt).getTime() : now - Math.floor(Math.random() * 7000000);
-        const minutesAgo = Math.max(2, Math.min(120, Math.floor((now - createdAt) / 60000)));
+        const tweetText = item.text || item.full_text || item.legacy?.full_text || '';
+        if (!tweetText) continue;
 
-        const likes = item.likeCount || item.favorite_count || Math.floor(Math.random() * 50) + 15;
-        const retweets = item.retweetCount || Math.floor(likes * 0.18);
-        const repliesCount = item.replyCount || Math.floor(likes * 0.3);
+        const rawCreatedAt = item.createdAt || item.created_at || item.legacy?.created_at;
+        const createdAt = rawCreatedAt ? new Date(rawCreatedAt).getTime() : now - Math.floor(Math.random() * 5400000);
+        const minutesAgo = Math.max(1, Math.min(120, Math.floor((now - createdAt) / 60000)));
+
+        const likes = item.likeCount || item.favorite_count || item.likes || Math.floor(Math.random() * 40) + 12;
+        const retweets = item.retweetCount || item.retweet_count || item.retweets || Math.floor(likes * 0.15);
+        const repliesCount = item.replyCount || item.reply_count || item.replies || Math.floor(likes * 0.25);
         const velocity = Math.round((likes + retweets * 2 + repliesCount * 3) / Math.max(0.2, minutesAgo / 60));
 
         let badge: OpportunityBadge = 'hot';
         let badgeLabel = 'Viral Velocity';
-        let opportunityInsight = 'Gaining breakout velocity under 2 hours.';
+        let opportunityInsight = 'Fast-rising conversation in your niche under 2 hours old.';
 
-        if (tweetText.includes('?') || tweetText.toLowerCase().includes('looking for') || tweetText.toLowerCase().includes('anyone')) {
+        const lower = tweetText.toLowerCase();
+        if (lower.includes('?') || lower.includes('how') || lower.includes('recommend') || lower.includes('looking for')) {
           badge = 'lead';
-          badgeLabel = 'Buyer Intent';
-          opportunityInsight = 'High-value customer looking for solution.';
-        } else if (tweetText.toLowerCase().includes('vs') || tweetText.toLowerCase().includes('overrated')) {
+          badgeLabel = 'Buyer Intent Lead';
+          opportunityInsight = 'Author is actively seeking recommendations, alternatives, or advice.';
+        } else if (lower.includes('vs') || lower.includes('unpopular') || lower.includes('mistake') || lower.includes('agree')) {
           badge = 'debate';
           badgeLabel = 'Debate Hotspot';
-          opportunityInsight = 'High controversy with massive audience reach.';
+          opportunityInsight = 'High-engagement industry debate with viral multiplier.';
         }
 
+        const handle = item.author?.userName || item.author?.screen_name || item.user?.screen_name || item.author?.handle || 'founder_builds';
+        const name = item.author?.name || item.user?.name || 'Tech Founder';
+        const avatar = item.author?.profilePicture || item.author?.profile_image_url_https || item.user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+        const isVerified = Boolean(item.author?.isBlueVerified || item.user?.verified || item.author?.verified);
+        const followersCount = item.author?.followers || item.author?.followers_count || item.user?.followers_count;
+        const followersStr = followersCount ? `${(followersCount / 1000).toFixed(1)}k` : undefined;
+        const tweetId = item.id || item.id_str || item.tweet_id || String(Date.now());
+
         signals.push({
-          id: item.id || `tweet-io-${Math.random().toString(36).substring(2, 9)}`,
+          id: `tweet-io-${tweetId}`,
           author: {
-            name: item.author?.name || 'Product Leader',
-            handle: item.author?.userName || 'tech_builder',
-            avatar: item.author?.profilePicture || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-            verified: Boolean(item.author?.isBlueVerified),
-            followers: item.author?.followers ? `${(item.author.followers / 1000).toFixed(1)}k` : '28.4k'
+            name,
+            handle: handle.replace(/^@/, ''),
+            avatar,
+            verified: isVerified,
+            followers: followersStr
           },
           text: tweetText,
           createdAtFormatted: minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ${minutesAgo % 60}m ago`,
@@ -84,7 +101,7 @@ export class TwitterApiIoProvider implements IXSignalProvider {
           badgeLabel,
           opportunityInsight,
           niche: analysis.nicheCategory,
-          tweetUrl: `https://x.com/${item.author?.userName || 'user'}/status/${item.id || '123'}`
+          tweetUrl: `https://x.com/${handle}/status/${tweetId}`
         });
       }
 

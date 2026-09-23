@@ -3,7 +3,7 @@ import { RapidApiTwitterProvider } from './providers/rapidApiProvider';
 import { TwitterApiIoProvider } from './providers/twitterApiIoProvider';
 import { DynamicSyntheticEngine } from './providers/syntheticEngine';
 import { IXSignalProvider, SearchSignalRequest, SearchSignalResponse } from './types';
-import { checkEmailUsage, recordEmailSearch, isValidEmail } from './usageTracker';
+import { checkEmailUsage, recordEmailSearch, isValidEmail, isUnlimitedEmail } from './usageTracker';
 
 const providers: IXSignalProvider[] = [
   new RapidApiTwitterProvider(),
@@ -49,7 +49,8 @@ export async function executeSignalSearch(request: SearchSignalRequest): Promise
   }
 
   // 3. Check email search quota (Max 2 free searches per email ID)
-  const usage = await checkEmailUsage(email);
+  const isDevUnlimited = Boolean((request as any).devUnlimited || isUnlimitedEmail(email));
+  const usage = await checkEmailUsage(email, isDevUnlimited);
   if (!usage.allowed) {
     return {
       success: false,
@@ -88,7 +89,7 @@ export async function executeSignalSearch(request: SearchSignalRequest): Promise
   }
 
   // 6. Record search usage against this email
-  const updatedUsage = await recordEmailSearch(email, rawQuery);
+  const updatedUsage = await recordEmailSearch(email, rawQuery, isDevUnlimited);
 
   return {
     success: true,
@@ -104,5 +105,5 @@ export async function executeSignalSearch(request: SearchSignalRequest): Promise
 }
 
 export { understandNiche } from './queryParser';
-export { checkEmailUsage, recordEmailSearch, isValidEmail, resetEmailUsageForDev } from './usageTracker';
+export { checkEmailUsage, recordEmailSearch, isValidEmail, resetEmailUsageForDev, setUnlimitedEmailForDev, isUnlimitedEmail } from './usageTracker';
 export * from './types';

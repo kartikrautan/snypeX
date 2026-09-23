@@ -9,106 +9,106 @@ interface NichePattern {
   hashtags: string[];
 }
 
-const NICHE_PATTERNS: Record<string, NichePattern> = {
-  saas: {
-    category: 'B2B SaaS & Micro-SaaS',
-    keywords: ['saas', 'mrr', 'churn', 'onboarding', 'pricing page', 'b2b', 'product-led growth', 'plg', 'stripe'],
+const NICHE_DICTIONARIES: Record<string, NichePattern> = {
+  crypto_trading: {
+    category: 'Crypto & Automated Trading',
+    keywords: ['crypto', 'trading', 'bot', 'arbitrage', 'solana', 'defi', 'dex', 'mempool', 'sniper', 'bitcoin', 'eth'],
     painPoints: [
-      'high churn rate',
-      'pricing table confusion',
-      'demo request drops',
-      'onboarding drop-off',
-      'CAC is too high'
+      'slippage eating 15% of trade margin',
+      'delayed execution triggers during volume spikes',
+      'MEV bot frontrunning on DEX swaps',
+      'unreliable WebSocket node connections',
+      'complicated liquidation risk settings'
     ],
     intentPhrases: [
-      'recommend a tool for',
-      'alternative to salesforce',
-      'how do you reduce churn',
-      'best onboarding tool',
-      'struggling with mrr'
+      'what is the fastest trading bot for',
+      'recommend a reliable arbitrage tool for',
+      'alternative to 3Commas for',
+      'anyone running automated grid bots on',
+      'how do you solve slippage on'
     ],
-    competitors: ['Intercom', 'Hubspot', 'Segment', 'Mixpanel', 'ChartMogul'],
-    hashtags: ['#buildinpublic', '#indiehackers', '#saas', '#b2b']
+    competitors: ['3Commas', 'DexScreener', 'Birdeye', 'Pionex', 'Trojan Bot', 'BananaGun'],
+    hashtags: ['#CryptoTrading', '#Solana', '#DeFi', '#AlgoTrading']
   },
-  ai_tools: {
-    category: 'AI & Developer Tools',
-    keywords: ['ai tool', 'llm', 'prompt engineering', 'openai', 'claude', 'agent', 'automation', 'chatgpt'],
+  video_creator: {
+    category: 'AI Video & Creator Tools',
+    keywords: ['video', 'editor', 'tiktok', 'reels', 'shorts', 'youtube', 'clip', 'captions', 'b-roll', 'subtitles', 'podcast'],
     painPoints: [
-      'token limits',
-      'hallucinations',
-      'latency in responses',
-      'expensive api costs',
-      'rate limits'
+      'manual subtitle syncing takes 3+ hours per video',
+      'generic AI captions feel robotic and get zero retention',
+      'clunky timeline rendering crashes on 4K exports',
+      'spending hours clipping 60-min podcast episodes',
+      'watermarked exports with overpriced credits'
     ],
     intentPhrases: [
-      'best AI tool for',
-      'looking for AI alternative to',
-      'anyone built an agent for',
-      'how do you optimize prompts',
-      'what AI stack are you using'
+      'best AI tool to repurpose long podcasts into',
+      'recommend a fast auto-caption tool for',
+      'alternative to OpusClip that actually works for',
+      'how do you automate short-form editing for',
+      'what editing stack are creator agencies using for'
     ],
-    competitors: ['OpenAI', 'Anthropic', 'Cursor', 'v0', 'Perplexity'],
-    hashtags: ['#AI', '#BuildInPublic', '#DevTools', '#LLM']
+    competitors: ['OpusClip', 'CapCut', 'Descript', 'Submagic', 'Vids', 'Premiere Pro'],
+    hashtags: ['#CreatorEconomy', '#AIVideo', '#Shorts', '#ContentCreation']
   },
   cold_outreach: {
     category: 'Sales & Cold Outreach',
-    keywords: ['cold email', 'deliverability', 'spam filter', 'outreach', 'leads', 'prospecting', 'open rate', 'reply rate'],
+    keywords: ['cold email', 'outreach', 'deliverability', 'spam', 'leads', 'prospecting', 'inbox', 'domain', 'reply rate', 'b2b sales'],
     painPoints: [
-      'emails landing in spam',
-      'low open rates',
-      'domain reputation damage',
-      'bad prospect data',
-      'burner domains burning fast'
+      'emails landing in spam folders despite warming up',
+      'burning secondary domains in under 3 weeks',
+      'low open rates below 20% on cold campaigns',
+      'stale LinkedIn prospect data with bouncing emails',
+      'robotic personalization templates that prospects ignore'
     ],
     intentPhrases: [
-      'best cold email tool',
-      'how to fix deliverability',
-      'alternative to instantly',
-      'how do you find founder emails',
-      'struggling with reply rates'
+      'best cold outreach platform with built-in warmup for',
+      'how to fix domain deliverability issues for',
+      'looking for an alternative to Instantly for',
+      'how do you scrape verified founder emails for',
+      'what tool gives the highest reply rates for'
     ],
-    competitors: ['Instantly', 'Lemlist', 'Smartlead', 'Apollo', 'Hunter'],
-    hashtags: ['#ColdEmail', '#SalesTech', '#B2BSales', '#LeadGen']
+    competitors: ['Instantly', 'Smartlead', 'Lemlist', 'Apollo', 'Clay', 'Hunter.io'],
+    hashtags: ['#ColdEmail', '#LeadGen', '#B2BSales', '#Outreach']
   },
-  marketing_growth: {
-    category: 'Growth & Social Distribution',
-    keywords: ['distribution', 'x audience', 'organic growth', 'traction', 'newsletter', 'content strategy', 'launch'],
+  dev_saas: {
+    category: 'DevTools, Code & Infrastructure',
+    keywords: ['code', 'developer', 'nextjs', 'react', 'api', 'database', 'supabase', 'vercel', 'agent', 'github', 'boilerplate', 'backend'],
     painPoints: [
-      'zero traction on launch',
-      'x algorithm reach down',
-      'hard to convert followers to buyers',
-      'content burnout',
-      'wasted ad spend'
+      'cold-start database connection timeouts on serverless',
+      'spending 3 days setting up Stripe and auth boilerplates',
+      'unclear API documentation with outdated SDK examples',
+      'expensive cloud compute bills for simple background queues',
+      'breaking schema migrations during production deployments'
     ],
     intentPhrases: [
-      'how to get first 100 users',
-      'how do you distribute content',
-      'alternative to paid ads',
-      'anyone cracked X growth',
-      'how to monetize twitter'
+      'what is the cleanest Next.js boilerplate for',
+      'recommend a lightweight database alternative for',
+      'how are you guys handling background jobs in',
+      'anyone built an AI agent architecture using',
+      'best developer tool to speed up shipping'
     ],
-    competitors: ['TweetHunter', 'Hypefury', 'Buffer', 'Typefully', 'Taplio'],
-    hashtags: ['#GrowthHacking', '#BuildInPublic', '#Marketing', '#IndieHacker']
+    competitors: ['Vercel', 'Supabase', 'Cursor', 'Prisma', 'Postman', 'Render', 'Neon'],
+    hashtags: ['#BuildInPublic', '#DevTools', '#Nextjs', '#IndieHacker']
   },
-  ecommerce_creator: {
-    category: 'E-commerce & Creators',
-    keywords: ['shopify', 'ecommerce', 'dropshipping', 'conversion rate', 'tiktok shop', 'creator economy', 'digital products'],
+  growth_marketing: {
+    category: 'Growth & Organic Distribution',
+    keywords: ['growth', 'distribution', 'audience', 'traffic', 'seo', 'newsletter', 'marketing', 'launch', 'traction', 'conversion'],
     painPoints: [
-      'high cart abandonment',
-      'ad costs eating margin',
-      'slow fulfillment',
-      'low checkout conversion',
-      'chargebacks'
+      'zero organic traction despite posting 5x a day',
+      'X algorithm throttling external link reach',
+      'high bounce rates on paid landing page traffic',
+      'spending 40 hours creating content that gets 20 views',
+      'struggling to convert social followers into paying customers'
     ],
     intentPhrases: [
-      'best shopify app for',
-      'how to increase checkout conversion',
-      'looking for supplier',
-      'how do you sell digital products',
-      'cart recovery recommendations'
+      'how to get first 100 paying customers for',
+      'best organic distribution playbook for',
+      'alternative to paid ads for early stage',
+      'how do you turn tweet engagement into sales for',
+      'what distribution habit helped you hit $10k MRR with'
     ],
-    competitors: ['Shopify', 'Klaviyo', 'Gumroad', 'Stripe', 'Printful'],
-    hashtags: ['#Ecommerce', '#Shopify', '#CreatorEconomy', '#DTC']
+    competitors: ['TweetHunter', 'Hypefury', 'Typefully', 'Taplio', 'Buffer', 'Beehiiv'],
+    hashtags: ['#GrowthHacking', '#BuildInPublic', '#IndieHackers', '#SaaS']
   }
 };
 
@@ -116,17 +116,16 @@ export function understandNiche(rawInput: string): NicheAnalysis {
   const cleanInput = (rawInput || '').trim();
   const lower = cleanInput.toLowerCase();
 
-  // Match best category
-  let bestMatchKey = 'saas';
+  let bestMatchKey = 'dev_saas';
   let highestScore = 0;
 
-  for (const [key, pattern] of Object.entries(NICHE_PATTERNS)) {
+  for (const [key, pattern] of Object.entries(NICHE_DICTIONARIES)) {
     let score = 0;
     for (const kw of pattern.keywords) {
-      if (lower.includes(kw)) score += 3;
+      if (lower.includes(kw)) score += 4;
     }
     for (const phrase of pattern.intentPhrases) {
-      if (lower.includes(phrase.toLowerCase())) score += 5;
+      if (lower.includes(phrase.toLowerCase())) score += 6;
     }
     if (score > highestScore) {
       highestScore = score;
@@ -134,18 +133,16 @@ export function understandNiche(rawInput: string): NicheAnalysis {
     }
   }
 
-  const selectedPattern = NICHE_PATTERNS[bestMatchKey];
+  const selectedPattern = NICHE_DICTIONARIES[bestMatchKey];
 
-  // Extract custom keywords from raw input
+  // Tokenize user's exact keywords
   const words = cleanInput
-    .replace(/[^a-zA-Z0-9s]/g, ' ')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length > 2 && !['and', 'the', 'for', 'with', 'what', 'how', 'this', 'that', 'from'].includes(w.toLowerCase()));
+    .filter(w => w.length > 2 && !['and', 'the', 'for', 'with', 'what', 'how', 'this', 'that', 'from', 'tool', 'best'].includes(w.toLowerCase()));
 
-  const customKeywords = Array.from(new Set([...words, ...selectedPattern.keywords.slice(0, 4)]));
+  const customKeywords = Array.from(new Set([...words, ...selectedPattern.keywords.slice(0, 3)]));
 
-  // Synthesize targeted X search query designed to capture recent traction conversations
-  // Form: (keyword1 OR keyword2) (pain_point OR "looking for" OR "anyone know") -is:retweet lang:en
   const coreTerms = words.slice(0, 3).join(' OR ') || cleanInput;
   const intentMod = '("recommend" OR "alternative" OR "how do" OR "struggling" OR "anyone know")';
   const xSearchQuery = `(${coreTerms}) ${intentMod} -is:retweet lang:en`;

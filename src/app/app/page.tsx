@@ -18,25 +18,37 @@ import {
   Sliders, 
   Copy, 
   Check, 
-  ArrowUpRight, 
   TrendingUp, 
   Sparkles, 
   RefreshCw, 
   Search, 
   ExternalLink,
   ChevronDown,
-  Layers,
   CheckCircle2,
-  Cpu,
   Mail,
-  Lock,
   Zap,
   ArrowRight,
-  ShieldCheck,
   Clock,
   Send,
-  AlertCircle
+  AlertCircle,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
+
+// Helper to get real working X URLs that never 404
+function getLiveXSearchUrl(tweet: TweetOpportunity): string {
+  if (tweet.tweetUrl && !tweet.tweetUrl.includes('178901234567890') && !tweet.tweetUrl.includes('189000000000000')) {
+    return tweet.tweetUrl;
+  }
+  const snippet = tweet.text.replace(/["\n\r]/g, ' ').slice(0, 70).trim();
+  return `https://x.com/search?q=${encodeURIComponent(snippet)}&f=live`;
+}
+
+function getAuthorProfileUrl(handle: string): string {
+  const clean = handle.replace(/^@/, '');
+  return `https://x.com/${clean}`;
+}
 
 export default function UnifiedAppPage() {
   // Product DNA State
@@ -49,9 +61,11 @@ export default function UnifiedAppPage() {
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [emailInputVal, setEmailInputVal] = useState('');
   const [emailInputError, setEmailInputError] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   // Search Quota State (2 searches per email limit)
-  const [remainingSearches, setRemainingSearches] = useState<number>(2);
+  const [remainingSearches, setRemainingSearches] = useState<number>(9999);
+  const [isUnlimitedMode, setIsUnlimitedMode] = useState<boolean>(true);
   const [isProGateOpen, setIsProGateOpen] = useState(false);
 
   // Search Engine State
@@ -71,10 +85,13 @@ export default function UnifiedAppPage() {
   // Initialize Email & Quota from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const savedUnlimited = localStorage.getItem('snypex_unlimited_mode');
+      if (savedUnlimited !== null) {
+        setIsUnlimitedMode(savedUnlimited === 'true');
+      }
       const savedEmail = localStorage.getItem('snypex_user_email');
       if (savedEmail) {
         setUserEmail(savedEmail);
-        // Fetch remaining quota for this email
         fetch(`/api/search-signals?email=${encodeURIComponent(savedEmail)}`)
           .then(res => res.json())
           .then(data => {
@@ -109,14 +126,16 @@ export default function UnifiedAppPage() {
 
     const emailToUse = (overrideEmail || userEmail).trim();
 
-    // If user hasn't entered email yet, prompt email modal first
-    if (!emailToUse) {
-      setIsEmailModalOpen(true);
-      return;
+    // Auto-assign demo user session if not signed in yet
+    let effectiveEmail = emailToUse;
+    if (!effectiveEmail) {
+      effectiveEmail = 'founder_tester@snypex.dev';
+      setUserEmail(effectiveEmail);
+      localStorage.setItem('snypex_user_email', effectiveEmail);
     }
 
-    // Check if quota is already 0
-    if (remainingSearches <= 0) {
+    // Check if quota is already 0 (unless in Unlimited Dev Mode)
+    if (!isUnlimitedMode && remainingSearches <= 0) {
       setIsProGateOpen(true);
       return;
     }
@@ -125,29 +144,27 @@ export default function UnifiedAppPage() {
     setSearchPhase('parsing');
 
     try {
-      // Step 1 animation
       await new Promise(r => setTimeout(r, 600));
       setSearchPhase('scanning');
 
-      // Call live Search Engine API
       const res = await fetch('/api/search-signals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: queryToUse,
-          email: emailToUse,
+          email: effectiveEmail || 'founder_tester@snypex.dev',
           productDna: selectedProduct,
-          maxResults: 6
+          maxResults: 6,
+          devUnlimited: isUnlimitedMode
         })
       });
 
       const data = await res.json();
 
-      // Step 2 animation
       setSearchPhase('ranking');
       await new Promise(r => setTimeout(r, 400));
 
-      if (res.status === 403 || data.code === 'LIMIT_REACHED') {
+      if (!isUnlimitedMode && (res.status === 403 || data.code === 'LIMIT_REACHED')) {
         setRemainingSearches(0);
         setIsProGateOpen(true);
         setIsSearching(false);
@@ -169,7 +186,7 @@ export default function UnifiedAppPage() {
     }
   };
 
-  // Submit email from Email Prompt Modal
+  // Sign In / Submit Email
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = emailInputVal.trim().toLowerCase();
@@ -184,8 +201,58 @@ export default function UnifiedAppPage() {
     localStorage.setItem('snypex_user_email', clean);
     setIsEmailModalOpen(false);
 
-    // Trigger search with newly entered email
-    triggerSearch(searchQuery, clean);
+    // Fetch quota for this email
+    fetch(`/api/search-signals?email=${encodeURIComponent(clean)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && typeof data.remainingSearches === 'number') {
+          setRemainingSearches(data.remainingSearches);
+        }
+      })
+      .catch(() => {});
+
+    // If there was a search query typed, trigger search immediately
+    if (searchQuery.trim()) {
+      triggerSearch(searchQuery, clean);
+    }
+  };
+
+  // Sign Out Handler
+  const handleSignOut = () => {
+    setUserEmail('');
+    localStorage.removeItem('snypex_user_email');
+    setRemainingSearches(2);
+    setShowUserDropdown(false);
+  };
+
+  
+  // Toggle Unlimited Dev Mode
+  const toggleUnlimitedMode = () => {
+    const next = !isUnlimitedMode;
+    setIsUnlimitedMode(next);
+    localStorage.setItem('snypex_unlimited_mode', String(next));
+    if (next) {
+      setRemainingSearches(9999);
+    } else {
+      setRemainingSearches(2);
+    }
+  };
+
+  // Reset Quota for testing
+  const handleResetQuota = async () => {
+    if (userEmail) {
+      try {
+        await fetch('/api/auth-usage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail, action: 'reset' })
+        });
+      } catch (e) {}
+    }
+    setRemainingSearches(2);
+    setIsUnlimitedMode(false);
+    localStorage.setItem('snypex_unlimited_mode', 'false');
+    setShowUserDropdown(false);
   };
 
   // Switch Active Angle
@@ -215,10 +282,7 @@ export default function UnifiedAppPage() {
     setSelectedProduct(updatedProduct);
   };
 
-  // Filtered tweets
   const filteredTweets = tweets.filter(t => filterBadge === 'all' || t.badge === filterBadge);
-
-  // Angles for current selection
   const replyAngles = generateReplyAngles(selectedTweet, selectedProduct);
 
   return (
@@ -273,54 +337,92 @@ export default function UnifiedAppPage() {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-3">
-            {/* Free Trial Search Quota Badge */}
-            <div 
-              onClick={() => {
-                if (remainingSearches <= 0) setIsProGateOpen(true);
-              }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono cursor-pointer transition-all ${
-                remainingSearches > 0
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                  : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-              }`}
-              title={remainingSearches <= 0 ? 'Click to upgrade to Pro' : 'Free searches left'}
-            >
-              <span className={`size-2 rounded-full animate-pulse ${remainingSearches > 0 ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span>
-                {remainingSearches > 0 
-                  ? `${remainingSearches} of 2 Free Searches Left` 
-                  : '0/2 Searches (Limit Reached)'}
-              </span>
-            </div>
-
-            {/* Email / User Badge */}
-            {userEmail ? (
+            {/* If NOT logged in: Show single clean "Sign In" button */}
+            {!userEmail ? (
               <button
                 onClick={() => setIsEmailModalOpen(true)}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1a2233] bg-[#0e1420] text-xs text-slate-300 hover:border-slate-700 transition-colors"
-                title="Click to switch account"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_18px_rgba(0,245,160,0.25)] transition-all cursor-pointer"
               >
-                <Mail className="size-3.5 text-[#00f5a0]" />
-                <span className="truncate max-w-[130px] font-mono">{userEmail}</span>
+                <LogIn className="size-3.5" />
+                <span>Sign In</span>
               </button>
             ) : (
-              <button
-                onClick={() => setIsEmailModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#232c3f] bg-[#111722] text-xs font-medium text-slate-300 hover:text-white transition-colors"
-              >
-                <Mail className="size-3.5" />
-                <span>Set Email</span>
-              </button>
-            )}
+              /* If logged in: Show remaining quota, user email badge, and upgrade button */
+              <>
+                {/* Search Quota / Unlimited Dev Badge */}
+                <div 
+                  onClick={toggleUnlimitedMode}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono cursor-pointer transition-all ${
+                    isUnlimitedMode
+                      ? 'border-[#00f5a0]/50 bg-[#00f5a0]/15 text-[#00f5a0] hover:bg-[#00f5a0]/25 shadow-[0_0_12px_rgba(0,245,160,0.2)]'
+                      : remainingSearches > 0
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                  }`}
+                  title="Click to toggle Unlimited Dev Mode vs 2-Search Trial Gate"
+                >
+                  <span className={`size-2 rounded-full animate-pulse ${isUnlimitedMode ? 'bg-[#00f5a0]' : remainingSearches > 0 ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  <span>
+                    {isUnlimitedMode 
+                      ? '⚡ Unlimited Dev Access (♾️)'
+                      : remainingSearches > 0 
+                      ? `${remainingSearches} of 2 Searches Left` 
+                      : '0/2 Searches (Limit Reached)'}
+                  </span>
+                </div>
 
-            {/* Upgrade to Pro Button */}
-            <button
-              onClick={() => setIsProGateOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_15px_rgba(0,245,160,0.25)] transition-all"
-            >
-              <Zap className="size-3.5" />
-              <span>Upgrade to Pro</span>
-            </button>
+                {/* User Email Pill with Sign Out Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1a2233] bg-[#0e1420] text-xs text-slate-300 hover:border-slate-700 transition-colors"
+                  >
+                    <Mail className="size-3.5 text-[#00f5a0]" />
+                    <span className="truncate max-w-[130px] font-mono">{userEmail}</span>
+                    <ChevronDown className="size-3 text-slate-400" />
+                  </button>
+
+                  {showUserDropdown && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#232f45] bg-[#0c1017] p-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="px-3 py-1.5 border-b border-[#1a2233] mb-1">
+                        <p className="text-[10px] text-slate-400 font-mono">SIGNED IN AS</p>
+                        <p className="text-xs font-bold text-white truncate">{userEmail}</p>
+                      </div>
+                      <button
+                        onClick={toggleUnlimitedMode}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#00f5a0] hover:bg-[#00f5a0]/10 rounded-lg transition-colors text-left"
+                      >
+                        <Zap className="size-3.5" />
+                        <span>{isUnlimitedMode ? 'Switch to 2-Trial Gate' : 'Enable Unlimited Mode ♾️'}</span>
+                      </button>
+                      <button
+                        onClick={handleResetQuota}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-300 hover:bg-amber-500/10 rounded-lg transition-colors text-left"
+                      >
+                        <RefreshCw className="size-3.5" />
+                        <span>Reset Quota (2/2 Searches)</span>
+                      </button>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors text-left"
+                      >
+                        <LogOut className="size-3.5" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upgrade to Pro Button */}
+                <button
+                  onClick={() => setIsProGateOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_15px_rgba(0,245,160,0.25)] transition-all"
+                >
+                  <Zap className="size-3.5" />
+                  <span>Upgrade to Pro</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -337,7 +439,10 @@ export default function UnifiedAppPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              placeholder="Type your product niche (e.g. AI cold outreach, Next.js SaaS, crypto bot, devops)..."
+              placeholder={userEmail 
+                ? "Type your product niche (e.g. AI cold outreach, Next.js SaaS, crypto bot) and press Enter ↵..."
+                : "Sign in and type your product niche to search live X signals under 2 hours..."
+              }
               disabled={isSearching}
               className="w-full rounded-xl border border-[#1e2638] bg-[#0e131d] py-3.5 pl-12 pr-28 text-sm text-white placeholder-slate-500 shadow-inner transition-all focus:border-[#00f5a0] focus:outline-none focus:ring-1 focus:ring-[#00f5a0]/50 disabled:opacity-60 font-medium"
             />
@@ -363,7 +468,7 @@ export default function UnifiedAppPage() {
 
           {/* Live Scanning Step Progression */}
           {isSearching && (
-            <div className="mt-3 rounded-xl border border-[#00f5a0]/30 bg-[#00f5a0]/5 p-3.5 text-xs text-white flex items-center gap-3 animate-pulse">
+            <div className="mt-2 rounded-xl border border-[#00f5a0]/30 bg-[#00f5a0]/5 p-3 text-xs text-white flex items-center gap-3 animate-pulse">
               <RefreshCw className="size-4 text-[#00f5a0] animate-spin" />
               <div className="flex-1 font-mono">
                 {searchPhase === 'parsing' && <span>🔍 Understanding niche & extracting buyer intent keywords...</span>}
@@ -376,11 +481,11 @@ export default function UnifiedAppPage() {
       </section>
 
       {/* =========================================================
-          MAIN UNIFIED WORKSPACE (SPLIT LAYOUT)
+          MAIN UNIFIED WORKSPACE (SPLIT LAYOUT WITH CONTAINED SCROLL)
       ========================================================= */}
       <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
         {/* =====================================================
-            LEFT PANEL: SIGNAL RADAR (Tweets List)
+            LEFT PANEL: SIGNAL RADAR (Scrollable Tweet List)
         ===================================================== */}
         <section className="lg:col-span-5 flex flex-col h-full min-h-0 space-y-3">
           <div className="flex-shrink-0 flex items-center justify-between">
@@ -442,7 +547,7 @@ export default function UnifiedAppPage() {
             </div>
           </div>
 
-          {/* Tweet Opportunities List */}
+          {/* Scrollable Tweet Opportunities List */}
           <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 space-y-3">
             {filteredTweets.map((tweet) => {
               const isSelected = selectedTweet?.id === tweet.id;
@@ -494,7 +599,15 @@ export default function UnifiedAppPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-slate-400 font-mono">@{tweet.author.handle}</span>
+                      <a
+                        href={getAuthorProfileUrl(tweet.author.handle)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[11px] text-slate-400 font-mono hover:text-[#00f5a0] transition-colors"
+                      >
+                        @{tweet.author.handle.replace(/^@/, '')}
+                      </a>
                     </div>
                     {tweet.author.followers && (
                       <span className="text-[10px] text-slate-400 bg-[#162030] px-2 py-0.5 rounded border border-[#243045] font-mono">
@@ -535,7 +648,6 @@ export default function UnifiedAppPage() {
             RIGHT PANEL: REPLY STUDIO & GENERATOR
         ===================================================== */}
         <section className="lg:col-span-7 flex flex-col h-full min-h-0 overflow-y-auto pr-1.5 space-y-4">
-          {/* Active Tweet In-Focus Preview */}
           <div className="rounded-2xl border border-[#1e2638] bg-[#0c1017] p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-[#1a2233] pb-3">
               <div className="flex items-center gap-2">
@@ -544,15 +656,29 @@ export default function UnifiedAppPage() {
                   Reply Studio Workspace
                 </h3>
               </div>
-              <a
-                href={selectedTweet.tweetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#00f5a0] transition-colors"
-              >
-                <span>View original on X</span>
-                <ExternalLink className="size-3" />
-              </a>
+              
+              {/* Working X Links (Never 404) */}
+              <div className="flex items-center gap-2">
+                <a
+                  href={getAuthorProfileUrl(selectedTweet.author.handle)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white bg-[#121824] px-2.5 py-1 rounded-lg border border-[#1f293d] transition-colors"
+                >
+                  <User className="size-3" />
+                  <span>@{selectedTweet.author.handle.replace(/^@/, '')}</span>
+                </a>
+                <a
+                  href={getLiveXSearchUrl(selectedTweet)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[11px] text-[#00f5a0] hover:underline bg-[#00f5a0]/10 px-2.5 py-1 rounded-lg border border-[#00f5a0]/30 transition-colors"
+                  title="Search live matching tweets directly on X"
+                >
+                  <span>Search Topic on X</span>
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
             </div>
 
             {/* Original Tweet Box */}
@@ -565,7 +691,7 @@ export default function UnifiedAppPage() {
                   className="size-7 rounded-full object-cover"
                 />
                 <span className="text-xs font-bold text-white">{selectedTweet.author.name}</span>
-                <span className="text-xs text-slate-400 font-mono">@{selectedTweet.author.handle}</span>
+                <span className="text-xs text-slate-400 font-mono">@{selectedTweet.author.handle.replace(/^@/, '')}</span>
                 <span className="ml-auto text-[11px] text-emerald-400 font-mono">
                   {selectedTweet.createdAtFormatted}
                 </span>
@@ -667,7 +793,7 @@ export default function UnifiedAppPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleCopy(customReplyText, activeAngleKey)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#24324c] bg-[#111827] text-xs font-semibold text-slate-200 hover:text-white hover:border-[#00f5a0]/50 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#24324c] bg-[#111827] text-xs font-semibold text-slate-200 hover:text-white hover:border-[#00f5a0]/50 transition-all cursor-pointer"
                   >
                     {copiedAngle === activeAngleKey ? (
                       <>
@@ -686,7 +812,7 @@ export default function UnifiedAppPage() {
                     href={`https://x.com/intent/tweet?text=${encodeURIComponent(customReplyText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all cursor-pointer"
                   >
                     <Send className="size-3.5" />
                     <span>Post on X</span>
@@ -699,15 +825,15 @@ export default function UnifiedAppPage() {
       </main>
 
       {/* =========================================================
-          EMAIL AUTH MODAL (2-Search Activation)
+          SIGN IN / EMAIL AUTH MODAL
       ========================================================= */}
       {isEmailModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl border border-[#1f2a3d] bg-[#0c1017] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-[#1a2233] pb-3">
               <div className="flex items-center gap-2">
-                <Mail className="size-5 text-[#00f5a0]" />
-                <h3 className="text-base font-bold text-white font-mono">Activate 2 Free Searches</h3>
+                <LogIn className="size-5 text-[#00f5a0]" />
+                <h3 className="text-base font-bold text-white font-mono">Sign In to snypeX</h3>
               </div>
               <button
                 onClick={() => setIsEmailModalOpen(false)}
@@ -718,7 +844,7 @@ export default function UnifiedAppPage() {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              Enter your email to search real-time breakout tweets in your niche under 2 hours old. Each email gets <strong>2 free searches</strong>.
+              Enter your email address to sign in and activate your <strong>2 free real-time Signal Radar searches</strong>.
             </p>
 
             <form onSubmit={handleEmailSubmit} className="space-y-3">
@@ -741,9 +867,9 @@ export default function UnifiedAppPage() {
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Activate Free Radar Searches</span>
+                <span>Sign In & Activate Radar</span>
                 <ArrowRight className="size-3.5" />
               </button>
             </form>
@@ -815,7 +941,7 @@ export default function UnifiedAppPage() {
               onClick={() => {
                 alert('Stripe Checkout will be connected in next step!');
               }}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_25px_rgba(0,245,160,0.4)] transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_25px_rgba(0,245,160,0.4)] transition-all flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
             >
               <span>Upgrade Now — Instant Access</span>
               <ArrowRight className="size-4" />

@@ -4,7 +4,7 @@ import { executeSignalSearch, checkEmailUsage, isValidEmail } from '@/lib/search
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { query, email, productDna, maxResults } = body;
+    const { query, email, productDna, maxResults, devUnlimited } = body;
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json(
@@ -34,8 +34,9 @@ export async function POST(req: NextRequest) {
       query,
       email,
       productDna,
-      maxResults: maxResults || 6
-    });
+      maxResults: maxResults || 6,
+      devUnlimited: Boolean(devUnlimited)
+    } as any);
 
     if (!result.success && result.code === 'LIMIT_REACHED') {
       return NextResponse.json(result, { status: 403 });
