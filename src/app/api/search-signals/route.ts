@@ -4,7 +4,9 @@ import { executeSignalSearch, checkEmailUsage, isValidEmail } from '@/lib/search
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { query, email, productDna, maxResults, devUnlimited } = body;
+    const { query, email, productDna, maxResults, devUnlimited, apifyToken, twitterApiIoKey } = body;
+    if (apifyToken) process.env.APIFY_API_TOKEN = apifyToken;
+    if (twitterApiIoKey) process.env.TWITTER_API_IO_KEY = twitterApiIoKey;
 
     if (!email || !isValidEmail(email)) {
       return NextResponse.json(

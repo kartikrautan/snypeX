@@ -2,26 +2,26 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  SAMPLE_PRODUCTS, 
-  MOCK_TWEET_OPPORTUNITIES 
+import {
+  SAMPLE_PRODUCTS,
+  MOCK_TWEET_OPPORTUNITIES
 } from '@/lib/mockData';
 import { generateReplyAngles } from '@/lib/generator';
 import { ProductDNA, TweetOpportunity, OpportunityBadge } from '@/types';
 import ProductDnaModal from '@/components/ProductDnaModal';
 import confetti from 'canvas-confetti';
-import { 
+import {
   Crosshair,
-  Flame, 
-  HelpCircle, 
-  MessageSquare, 
-  Sliders, 
-  Copy, 
-  Check, 
-  TrendingUp, 
-  Sparkles, 
-  RefreshCw, 
-  Search, 
+  Flame,
+  HelpCircle,
+  MessageSquare,
+  Sliders,
+  Copy,
+  Check,
+  TrendingUp,
+  Sparkles,
+  RefreshCw,
+  Search,
   ExternalLink,
   ChevronDown,
   CheckCircle2,
@@ -56,6 +56,8 @@ export default function UnifiedAppPage() {
   const [selectedProduct, setSelectedProduct] = useState<ProductDNA>(SAMPLE_PRODUCTS[0]);
   const [isDnaModalOpen, setIsDnaModalOpen] = useState(false);
 
+  const [twitterApiIoKeyInput, setTwitterApiIoKeyInput] = useState('');
+
   // Email & Auth State
   const [userEmail, setUserEmail] = useState<string>('');
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -89,6 +91,7 @@ export default function UnifiedAppPage() {
       if (savedUnlimited !== null) {
         setIsUnlimitedMode(savedUnlimited === 'true');
       }
+
       const savedEmail = localStorage.getItem('snypex_user_email');
       if (savedEmail) {
         setUserEmail(savedEmail);
@@ -99,7 +102,7 @@ export default function UnifiedAppPage() {
               setRemainingSearches(data.remainingSearches);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   }, []);
@@ -155,7 +158,9 @@ export default function UnifiedAppPage() {
           email: effectiveEmail || 'founder_tester@snypex.dev',
           productDna: selectedProduct,
           maxResults: 6,
-          devUnlimited: isUnlimitedMode
+          devUnlimited: isUnlimitedMode,
+          apifyToken: localStorage.getItem('snypex_apify_token') || undefined,
+          twitterApiIoKey: localStorage.getItem('snypex_twitterapi_io_key') || undefined
         })
       });
 
@@ -209,7 +214,7 @@ export default function UnifiedAppPage() {
           setRemainingSearches(data.remainingSearches);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     // If there was a search query typed, trigger search immediately
     if (searchQuery.trim()) {
@@ -225,7 +230,7 @@ export default function UnifiedAppPage() {
     setShowUserDropdown(false);
   };
 
-  
+
   // Toggle Unlimited Dev Mode
   const toggleUnlimitedMode = () => {
     const next = !isUnlimitedMode;
@@ -247,7 +252,7 @@ export default function UnifiedAppPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: userEmail, action: 'reset' })
         });
-      } catch (e) {}
+      } catch (e) { }
     }
     setRemainingSearches(2);
     setIsUnlimitedMode(false);
@@ -350,24 +355,23 @@ export default function UnifiedAppPage() {
               /* If logged in: Show remaining quota, user email badge, and upgrade button */
               <>
                 {/* Search Quota / Unlimited Dev Badge */}
-                <div 
+                <div
                   onClick={toggleUnlimitedMode}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono cursor-pointer transition-all ${
-                    isUnlimitedMode
-                      ? 'border-[#00f5a0]/50 bg-[#00f5a0]/15 text-[#00f5a0] hover:bg-[#00f5a0]/25 shadow-[0_0_12px_rgba(0,245,160,0.2)]'
-                      : remainingSearches > 0
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono cursor-pointer transition-all ${isUnlimitedMode
+                    ? 'border-[#00f5a0]/50 bg-[#00f5a0]/15 text-[#00f5a0] hover:bg-[#00f5a0]/25 shadow-[0_0_12px_rgba(0,245,160,0.2)]'
+                    : remainingSearches > 0
                       ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                       : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-                  }`}
+                    }`}
                   title="Click to toggle Unlimited Dev Mode vs 2-Search Trial Gate"
                 >
                   <span className={`size-2 rounded-full animate-pulse ${isUnlimitedMode ? 'bg-[#00f5a0]' : remainingSearches > 0 ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                   <span>
-                    {isUnlimitedMode 
+                    {isUnlimitedMode
                       ? '⚡ Unlimited Dev Access (♾️)'
-                      : remainingSearches > 0 
-                      ? `${remainingSearches} of 2 Searches Left` 
-                      : '0/2 Searches (Limit Reached)'}
+                      : remainingSearches > 0
+                        ? `${remainingSearches} of 2 Searches Left`
+                        : '0/2 Searches (Limit Reached)'}
                   </span>
                 </div>
 
@@ -439,9 +443,9 @@ export default function UnifiedAppPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              placeholder={userEmail 
-                ? "Type your product niche (e.g. AI cold outreach, Next.js SaaS, crypto bot) and press Enter ↵..."
-                : "Sign in and type your product niche to search live X signals under 2 hours..."
+              placeholder={userEmail
+                ? "Type your niche (e.g. AI cold outreach, Next.js SaaS, crypto bot) and press Enter ↵..."
+                : "Sign in and type your niche to search live X signals under 2 hours..."
               }
               disabled={isSearching}
               className="w-full rounded-xl border border-[#1e2638] bg-[#0e131d] py-3.5 pl-12 pr-28 text-sm text-white placeholder-slate-500 shadow-inner transition-all focus:border-[#00f5a0] focus:outline-none focus:ring-1 focus:ring-[#00f5a0]/50 disabled:opacity-60 font-medium"
@@ -462,7 +466,7 @@ export default function UnifiedAppPage() {
               <span className="text-slate-400">Scans live tweets &lt; 2h old</span>
             </div>
             <div className="text-[11px] text-slate-500">
-              Press <kbd className="text-slate-300 font-mono">Enter ↵</kbd> to search. 2 free searches per email ID.
+              Press <kbd className="text-slate-300 font-mono">Enter ↵</kbd> to search.
             </div>
           </div>
 
@@ -503,43 +507,39 @@ export default function UnifiedAppPage() {
             <div className="flex items-center gap-1 text-xs">
               <button
                 onClick={() => setFilterBadge('all')}
-                className={`px-2.5 py-1 rounded-lg transition-colors font-medium ${
-                  filterBadge === 'all'
-                    ? 'bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30'
-                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium ${filterBadge === 'all'
+                  ? 'bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30'
+                  : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                  }`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilterBadge('hot')}
-                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
-                  filterBadge === 'hot'
-                    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${filterBadge === 'hot'
+                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                  }`}
               >
                 <Flame className="size-3" />
                 <span>Viral</span>
               </button>
               <button
                 onClick={() => setFilterBadge('lead')}
-                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
-                  filterBadge === 'lead'
-                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${filterBadge === 'lead'
+                  ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                  : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                  }`}
               >
                 <HelpCircle className="size-3" />
                 <span>Leads</span>
               </button>
               <button
                 onClick={() => setFilterBadge('debate')}
-                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
-                  filterBadge === 'debate'
-                    ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
-                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
-                }`}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${filterBadge === 'debate'
+                  ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                  : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                  }`}
               >
                 <MessageSquare className="size-3" />
                 <span>Debate</span>
@@ -555,21 +555,19 @@ export default function UnifiedAppPage() {
                 <div
                   key={tweet.id}
                   onClick={() => setSelectedTweet(tweet)}
-                  className={`group relative rounded-xl border p-4 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-[#00f5a0] bg-[#0e1622] shadow-[0_0_20px_rgba(0,245,160,0.15)] ring-1 ring-[#00f5a0]/40'
-                      : 'border-[#1a2233] bg-[#0c1017] hover:border-slate-700 hover:bg-[#0f141e]'
-                  }`}
+                  className={`group relative rounded-xl border p-4 transition-all cursor-pointer ${isSelected
+                    ? 'border-[#00f5a0] bg-[#0e1622] shadow-[0_0_20px_rgba(0,245,160,0.15)] ring-1 ring-[#00f5a0]/40'
+                    : 'border-[#1a2233] bg-[#0c1017] hover:border-slate-700 hover:bg-[#0f141e]'
+                    }`}
                 >
                   {/* Badge & Time Ago (<2h) */}
                   <div className="flex items-center justify-between text-xs mb-2">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                      tweet.badge === 'hot'
-                        ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
-                        : tweet.badge === 'lead'
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${tweet.badge === 'hot'
+                      ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                      : tweet.badge === 'lead'
                         ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
                         : 'border-purple-500/30 bg-purple-500/10 text-purple-400'
-                    }`}>
+                      }`}>
                       {tweet.badge === 'hot' && <Flame className="size-3" />}
                       {tweet.badge === 'lead' && <HelpCircle className="size-3" />}
                       {tweet.badge === 'debate' && <MessageSquare className="size-3" />}
@@ -656,7 +654,7 @@ export default function UnifiedAppPage() {
                   Reply Studio Workspace
                 </h3>
               </div>
-              
+
               {/* Working X Links (Never 404) */}
               <div className="flex items-center gap-2">
                 <a
@@ -711,11 +709,10 @@ export default function UnifiedAppPage() {
                 {/* Angle 1: Data Drop */}
                 <div
                   onClick={() => handleSelectAngle('dataDrop')}
-                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                    activeAngleKey === 'dataDrop'
-                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
-                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${activeAngleKey === 'dataDrop'
+                    ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                    : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold mb-1">
                     <span>{replyAngles.dataDrop.title}</span>
@@ -729,11 +726,10 @@ export default function UnifiedAppPage() {
                 {/* Angle 2: Hook */}
                 <div
                   onClick={() => handleSelectAngle('conversationHook')}
-                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                    activeAngleKey === 'conversationHook'
-                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
-                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${activeAngleKey === 'conversationHook'
+                    ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                    : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold mb-1">
                     <span>{replyAngles.conversationHook.title}</span>
@@ -747,11 +743,10 @@ export default function UnifiedAppPage() {
                 {/* Angle 3: Stealth Plug */}
                 <div
                   onClick={() => handleSelectAngle('stealthPlug')}
-                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                    activeAngleKey === 'stealthPlug'
-                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
-                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
-                  }`}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${activeAngleKey === 'stealthPlug'
+                    ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                    : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                    }`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold mb-1">
                     <span>{replyAngles.stealthPlug.title}</span>
@@ -949,6 +944,7 @@ export default function UnifiedAppPage() {
           </div>
         </div>
       )}
+
 
       {/* =========================================================
           PRODUCT DNA MODAL
