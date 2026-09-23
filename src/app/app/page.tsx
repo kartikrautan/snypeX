@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   SAMPLE_PRODUCTS, 
@@ -28,594 +28,810 @@ import {
   Layers,
   CheckCircle2,
   Cpu,
+  Mail,
   Lock,
-  ArrowRight,
   Zap,
-  Plus
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  Send,
+  AlertCircle
 } from 'lucide-react';
 
-export default function CommandCenterPage() {
+export default function UnifiedAppPage() {
+  // Product DNA State
   const [products, setProducts] = useState<ProductDNA[]>(SAMPLE_PRODUCTS);
-  const [activeProduct, setActiveProduct] = useState<ProductDNA>(SAMPLE_PRODUCTS[0]);
-  const [customNiche, setCustomNiche] = useState('');
-  const [isCustomMode, setIsCustomMode] = useState(false);
-  const [selectedTweet, setSelectedTweet] = useState<TweetOpportunity>(MOCK_TWEET_OPPORTUNITIES[0]);
-  const [filterBadge, setFilterBadge] = useState<OpportunityBadge | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProduct, setSelectedProduct] = useState<ProductDNA>(SAMPLE_PRODUCTS[0]);
   const [isDnaModalOpen, setIsDnaModalOpen] = useState(false);
+
+  // Email & Auth State
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailInputVal, setEmailInputVal] = useState('');
+  const [emailInputError, setEmailInputError] = useState('');
+
+  // Search Quota State (2 searches per email limit)
+  const [remainingSearches, setRemainingSearches] = useState<number>(2);
+  const [isProGateOpen, setIsProGateOpen] = useState(false);
+
+  // Search Engine State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchPhase, setSearchPhase] = useState<'parsing' | 'scanning' | 'ranking' | 'done'>('done');
+  const [activeNicheLabel, setActiveNicheLabel] = useState('B2B SaaS & Growth');
+
+  // Tweets & Studio State
+  const [tweets, setTweets] = useState<TweetOpportunity[]>(MOCK_TWEET_OPPORTUNITIES);
+  const [selectedTweet, setSelectedTweet] = useState<TweetOpportunity>(MOCK_TWEET_OPPORTUNITIES[0]);
+  const [filterBadge, setFilterBadge] = useState<'all' | OpportunityBadge>('all');
   const [activeAngleKey, setActiveAngleKey] = useState<'dataDrop' | 'conversationHook' | 'stealthPlug'>('dataDrop');
-  const [editedText, setEditedText] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [customReplyText, setCustomReplyText] = useState('');
+  const [copiedAngle, setCopiedAngle] = useState<string | null>(null);
 
-  // Active product context
-  const currentContext: ProductDNA = isCustomMode && customNiche.trim()
-    ? {
-        id: 'custom-user-niche',
-        name: customNiche.trim(),
-        tagline: `The high-authority solution for ${customNiche.trim()}`,
-        targetAudience: `Founders and teams looking for ${customNiche.trim()}`,
-        differentiator: '3.4x faster turnaround, zero fluff, proprietary intelligence engine',
-        url: `https://${customNiche.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
-        tone: 'founder'
+  // Initialize Email & Quota from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedEmail = localStorage.getItem('snypex_user_email');
+      if (savedEmail) {
+        setUserEmail(savedEmail);
+        // Fetch remaining quota for this email
+        fetch(`/api/search-signals?email=${encodeURIComponent(savedEmail)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && typeof data.remainingSearches === 'number') {
+              setRemainingSearches(data.remainingSearches);
+            }
+          })
+          .catch(() => {});
       }
-    : activeProduct;
+    }
+  }, []);
 
-  // Generate angles
-  const angles = generateReplyAngles(selectedTweet, currentContext);
+  // Update reply text when selected tweet, product, or angle changes
+  useEffect(() => {
+    if (selectedTweet && selectedProduct) {
+      const angles = generateReplyAngles(selectedTweet, selectedProduct);
+      setCustomReplyText(angles[activeAngleKey].text);
+    }
+  }, [selectedTweet, selectedProduct, activeAngleKey]);
 
-  // Sync editedText when tweet, product, or angle tab changes
-  React.useEffect(() => {
-    setEditedText(angles[activeAngleKey].text);
-  }, [selectedTweet.id, activeProduct.id, activeAngleKey, isCustomMode, customNiche]);
-
-  // Filter tweets
-  const filteredTweets = MOCK_TWEET_OPPORTUNITIES.filter((t) => {
-    const matchesBadge = filterBadge === 'all' || t.badge === filterBadge;
-    const matchesSearch = 
-      t.author.handle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.author.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.text.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesBadge && matchesSearch;
-  });
-
-  const charCount = editedText.length;
-  const isOverLimit = charCount > 280;
-
-  const handleCopy = () => {
-    if (isCustomMode) return;
-    navigator.clipboard.writeText(editedText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Execute Search Engine on Enter
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      triggerSearch();
+    }
   };
 
-  const handlePostOnX = () => {
-    if (isCustomMode) return;
-    // Trigger celebratory confetti
+  const triggerSearch = async (overrideQuery?: string, overrideEmail?: string) => {
+    const queryToUse = (overrideQuery || searchQuery).trim();
+    if (!queryToUse) return;
+
+    const emailToUse = (overrideEmail || userEmail).trim();
+
+    // If user hasn't entered email yet, prompt email modal first
+    if (!emailToUse) {
+      setIsEmailModalOpen(true);
+      return;
+    }
+
+    // Check if quota is already 0
+    if (remainingSearches <= 0) {
+      setIsProGateOpen(true);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchPhase('parsing');
+
+    try {
+      // Step 1 animation
+      await new Promise(r => setTimeout(r, 600));
+      setSearchPhase('scanning');
+
+      // Call live Search Engine API
+      const res = await fetch('/api/search-signals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: queryToUse,
+          email: emailToUse,
+          productDna: selectedProduct,
+          maxResults: 6
+        })
+      });
+
+      const data = await res.json();
+
+      // Step 2 animation
+      setSearchPhase('ranking');
+      await new Promise(r => setTimeout(r, 400));
+
+      if (res.status === 403 || data.code === 'LIMIT_REACHED') {
+        setRemainingSearches(0);
+        setIsProGateOpen(true);
+        setIsSearching(false);
+        setSearchPhase('done');
+        return;
+      }
+
+      if (data.success && data.signals && data.signals.length > 0) {
+        setTweets(data.signals);
+        setSelectedTweet(data.signals[0]);
+        setActiveNicheLabel(data.parsedNiche?.nicheCategory || queryToUse);
+        setRemainingSearches(data.remainingSearches);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsSearching(false);
+      setSearchPhase('done');
+    }
+  };
+
+  // Submit email from Email Prompt Modal
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = emailInputVal.trim().toLowerCase();
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean);
+    if (!valid) {
+      setEmailInputError('Please enter a valid email address.');
+      return;
+    }
+
+    setEmailInputError('');
+    setUserEmail(clean);
+    localStorage.setItem('snypex_user_email', clean);
+    setIsEmailModalOpen(false);
+
+    // Trigger search with newly entered email
+    triggerSearch(searchQuery, clean);
+  };
+
+  // Switch Active Angle
+  const handleSelectAngle = (key: 'dataDrop' | 'conversationHook' | 'stealthPlug') => {
+    setActiveAngleKey(key);
+    const angles = generateReplyAngles(selectedTweet, selectedProduct);
+    setCustomReplyText(angles[key].text);
+  };
+
+  // Copy to Clipboard
+  const handleCopy = (text: string, angleName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedAngle(angleName);
     confetti({
-      particleCount: 50,
+      particleCount: 40,
       spread: 60,
       origin: { y: 0.8 },
       colors: ['#00f5a0', '#00d2ff', '#ffffff']
     });
-
-    const encodedText = encodeURIComponent(editedText);
-    const intentUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
-    window.open(intentUrl, '_blank', 'noopener,noreferrer');
+    setTimeout(() => setCopiedAngle(null), 2000);
   };
 
-  const handleRegenerate = () => {
-    setIsRegenerating(true);
-    setTimeout(() => {
-      setIsRegenerating(false);
-      setEditedText(angles[activeAngleKey].text);
-    }, 400);
+  // Save Product DNA from modal
+  const handleSaveProduct = (updatedProduct: ProductDNA) => {
+    const nextList = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
+    setProducts(nextList);
+    setSelectedProduct(updatedProduct);
   };
 
-  const handleSaveDna = (updated: ProductDNA) => {
-    setActiveProduct(updated);
-    setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    setIsCustomMode(false);
-  };
+  // Filtered tweets
+  const filteredTweets = tweets.filter(t => filterBadge === 'all' || t.badge === filterBadge);
 
-  const handleApplyCustomNiche = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (customNiche.trim()) {
-      setIsCustomMode(true);
-    }
-  };
+  // Angles for current selection
+  const replyAngles = generateReplyAngles(selectedTweet, selectedProduct);
 
   return (
-    <div className="min-h-screen bg-[#07080c] text-slate-100 flex flex-col font-sans">
-      {/* Top Application Bar */}
-      <header className="h-16 border-b border-[#1c2230] bg-[#0c1017]/90 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-30 shrink-0">
-        {/* Brand & Mode */}
-        <div className="flex items-center gap-5">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="relative grid size-8 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
-              <Crosshair className="size-4 text-[#00f5a0]" strokeWidth={2.5} />
-              <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
-            </span>
-            <span className="font-mono text-lg font-bold tracking-tight text-white">
-              snype<span className="text-[#00f5a0]">X</span>
-            </span>
-          </Link>
+    <div className="h-screen bg-[#07080c] text-slate-100 flex flex-col font-sans selection:bg-[#00f5a0]/30 selection:text-[#00f5a0] overflow-hidden">
+      {/* =========================================================
+          TOP NAVBAR
+      ========================================================= */}
+      <header className="flex-shrink-0 z-40 w-full border-b border-[#1a1f2c] bg-[#0c1017]/95 backdrop-blur-md">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+          {/* Logo & Version */}
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <span className="relative grid size-9 place-items-center rounded-full border-2 border-slate-200 bg-[#0e121b] transition-transform group-hover:scale-105">
+                <Crosshair className="size-4.5 text-[#00f5a0]" strokeWidth={2.5} />
+                <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-[#00f5a0] shadow-[0_0_8px_#00f5a0]" />
+              </span>
+              <span className="text-xl font-bold tracking-tight text-white font-mono">
+                snype<span className="text-[#00f5a0]">X</span>
+              </span>
+            </Link>
 
-          {/* Persona / Niche Switcher */}
-          <div className="hidden sm:flex items-center gap-2 rounded-lg border border-[#222a3a] bg-[#121622] px-3 py-1.5 text-xs font-mono">
-            <span className="text-slate-400">Persona:</span>
-            <select
-              value={isCustomMode ? 'custom' : activeProduct.id}
-              onChange={(e) => {
-                if (e.target.value === 'custom') {
-                  setIsCustomMode(true);
-                  if (!customNiche) setCustomNiche('AI Cold Outreach SaaS');
-                } else {
-                  setIsCustomMode(false);
-                  const found = products.find((p) => p.id === e.target.value);
-                  if (found) setActiveProduct(found);
-                }
-              }}
-              className="bg-transparent font-bold text-white focus:outline-none cursor-pointer"
-            >
-              {products.map((p) => (
-                <option key={p.id} value={p.id} className="bg-[#121622] text-white">
-                  {p.name}
-                </option>
-              ))}
-              <option value="custom" className="bg-[#121622] text-[#00f5a0] font-bold">
-                + Custom Niche (Pro)
-              </option>
-            </select>
-            <button
-              type="button"
-              onClick={() => setIsDnaModalOpen(true)}
-              className="ml-1 text-[#00f5a0] hover:text-[#00d2ff] transition-colors p-1"
-              title="Calibrate Product DNA"
-            >
-              <Sliders className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+            <div className="hidden sm:block h-5 w-px bg-slate-800" />
 
-        {/* Right Nav / Status */}
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 rounded-full bg-[#00f5a0]/10 border border-[#00f5a0]/30 px-3 py-1 text-xs font-mono text-[#00f5a0]">
-            <span className="relative flex size-2">
-              <span className="signal-pulse absolute size-2 rounded-full bg-[#00f5a0]" />
-              <span className="relative size-2 rounded-full bg-[#00f5a0]" />
-            </span>
-            <span>Radar Active &bull; 30–90m Window</span>
-          </div>
-
-          <Link
-            href="/#pricing"
-            className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-3.5 py-1.5 text-xs font-bold text-[#07080c] shadow-[0_0_15px_rgba(0,245,160,0.3)] hover:opacity-95 transition-all"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Upgrade to Pro</span>
-          </Link>
-        </div>
-      </header>
-
-      {/* Main Command Center Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-        {/* LEFT PANEL: Breakout Tweets Radar Feed (5 Cols) */}
-        <div className="lg:col-span-5 border-r border-[#1a2130] bg-[#090c13] flex flex-col h-[calc(100vh-4rem)]">
-          {/* Radar Controls & Custom Niche Bar */}
-          <div className="p-4 border-b border-[#182030] space-y-3 shrink-0">
-            {/* Custom Niche Bar */}
-            <form onSubmit={handleApplyCustomNiche} className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Enter your product/niche (e.g. AI Video Editor)..."
-                  value={customNiche}
+            {/* Product DNA Selector Dropdown */}
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-xs font-mono text-slate-400">PRODUCT DNA:</span>
+              <div className="relative inline-block">
+                <select
+                  value={selectedProduct.id}
                   onChange={(e) => {
-                    setCustomNiche(e.target.value);
-                    setIsCustomMode(true);
+                    const found = products.find(p => p.id === e.target.value);
+                    if (found) setSelectedProduct(found);
                   }}
-                  className="w-full rounded-xl border border-white/[0.1] bg-[#111622] pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#00f5a0]"
-                />
+                  aria-label="Select Product DNA"
+                  className="appearance-none bg-[#131926] border border-[#232c3f] rounded-lg py-1.5 pl-3 pr-8 text-xs font-semibold text-white hover:border-[#00f5a0]/40 focus:outline-none focus:border-[#00f5a0] cursor-pointer"
+                >
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} ({p.tone})</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3 text-slate-400 pointer-events-none" />
               </div>
               <button
-                type="submit"
-                className="flex items-center gap-1 rounded-xl bg-[#182132] border border-white/[0.1] px-3 py-2 text-xs font-semibold text-[#00f5a0] hover:bg-[#1e2a40] transition-colors"
+                onClick={() => setIsDnaModalOpen(true)}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-[#1a2233] rounded-lg transition-colors"
+                title="Configure Product DNA"
               >
-                <span>Track</span>
-              </button>
-            </form>
-
-            {/* Opportunity Category Badges Filter */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-mono">
-              <button
-                type="button"
-                onClick={() => setFilterBadge('all')}
-                className={`rounded-lg px-2.5 py-1 transition-all ${
-                  filterBadge === 'all'
-                    ? 'bg-[#1b2436] text-white border border-[#2b3952]'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                All (3)
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBadge('hot')}
-                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 transition-all ${
-                  filterBadge === 'hot'
-                    ? 'bg-red-500/15 text-red-400 border border-red-500/30 font-bold'
-                    : 'text-slate-400 hover:text-red-400'
-                }`}
-              >
-                <Flame className="h-3 w-3" />
-                <span>Golden 30m</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBadge('lead')}
-                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 transition-all ${
-                  filterBadge === 'lead'
-                    ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30 font-bold'
-                    : 'text-slate-400 hover:text-purple-400'
-                }`}
-              >
-                <HelpCircle className="h-3 w-3" />
-                <span>Buying Intent</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterBadge('debate')}
-                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 transition-all ${
-                  filterBadge === 'debate'
-                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold'
-                    : 'text-slate-400 hover:text-amber-400'
-                }`}
-              >
-                <MessageSquare className="h-3 w-3" />
-                <span>Hot Debate</span>
+                <Sliders className="size-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Scrollable Tweet Opportunities List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Right Header Controls */}
+          <div className="flex items-center gap-3">
+            {/* Free Trial Search Quota Badge */}
+            <div 
+              onClick={() => {
+                if (remainingSearches <= 0) setIsProGateOpen(true);
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-mono cursor-pointer transition-all ${
+                remainingSearches > 0
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+              }`}
+              title={remainingSearches <= 0 ? 'Click to upgrade to Pro' : 'Free searches left'}
+            >
+              <span className={`size-2 rounded-full animate-pulse ${remainingSearches > 0 ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>
+                {remainingSearches > 0 
+                  ? `${remainingSearches} of 2 Free Searches Left` 
+                  : '0/2 Searches (Limit Reached)'}
+              </span>
+            </div>
+
+            {/* Email / User Badge */}
+            {userEmail ? (
+              <button
+                onClick={() => setIsEmailModalOpen(true)}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#1a2233] bg-[#0e1420] text-xs text-slate-300 hover:border-slate-700 transition-colors"
+                title="Click to switch account"
+              >
+                <Mail className="size-3.5 text-[#00f5a0]" />
+                <span className="truncate max-w-[130px] font-mono">{userEmail}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsEmailModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#232c3f] bg-[#111722] text-xs font-medium text-slate-300 hover:text-white transition-colors"
+              >
+                <Mail className="size-3.5" />
+                <span>Set Email</span>
+              </button>
+            )}
+
+            {/* Upgrade to Pro Button */}
+            <button
+              onClick={() => setIsProGateOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_15px_rgba(0,245,160,0.25)] transition-all"
+            >
+              <Zap className="size-3.5" />
+              <span>Upgrade to Pro</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* =========================================================
+          RADAR SEARCH BAR (Enter Key Trigger - No Reset)
+      ========================================================= */}
+      <section className="flex-shrink-0 border-b border-[#1a1f2c] bg-[#0a0d14] px-4 py-3.5 sm:px-6">
+        <div className="max-w-7xl mx-auto space-y-2">
+          <div className="relative flex items-center">
+            <Search className="absolute left-4 size-5 text-[#00f5a0]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Type your product niche (e.g. AI cold outreach, Next.js SaaS, crypto bot, devops)..."
+              disabled={isSearching}
+              className="w-full rounded-xl border border-[#1e2638] bg-[#0e131d] py-3.5 pl-12 pr-28 text-sm text-white placeholder-slate-500 shadow-inner transition-all focus:border-[#00f5a0] focus:outline-none focus:ring-1 focus:ring-[#00f5a0]/50 disabled:opacity-60 font-medium"
+            />
+            <div className="absolute right-3 flex items-center gap-2">
+              <kbd className="hidden sm:inline-flex items-center gap-1 rounded bg-[#172030] px-2 py-1 text-[11px] font-mono text-slate-300 border border-[#2b374e]">
+                <span>Enter</span>
+                <span className="text-[#00f5a0]">↵</span>
+              </kbd>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 px-1 gap-2">
+            <div className="flex items-center gap-2 font-mono">
+              <span className="text-[#00f5a0]">●</span>
+              <span>Active Niche: <strong className="text-slate-200">{activeNicheLabel}</strong></span>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">Scans live tweets &lt; 2h old</span>
+            </div>
+            <div className="text-[11px] text-slate-500">
+              Press <kbd className="text-slate-300 font-mono">Enter ↵</kbd> to search. 2 free searches per email ID.
+            </div>
+          </div>
+
+          {/* Live Scanning Step Progression */}
+          {isSearching && (
+            <div className="mt-3 rounded-xl border border-[#00f5a0]/30 bg-[#00f5a0]/5 p-3.5 text-xs text-white flex items-center gap-3 animate-pulse">
+              <RefreshCw className="size-4 text-[#00f5a0] animate-spin" />
+              <div className="flex-1 font-mono">
+                {searchPhase === 'parsing' && <span>🔍 Understanding niche & extracting buyer intent keywords...</span>}
+                {searchPhase === 'scanning' && <span>⚡ Scanning X for live breakout conversations (&lt;2h old)...</span>}
+                {searchPhase === 'ranking' && <span>🎯 Calculating engagement velocity and ranking reply opportunities...</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* =========================================================
+          MAIN UNIFIED WORKSPACE (SPLIT LAYOUT)
+      ========================================================= */}
+      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
+        {/* =====================================================
+            LEFT PANEL: SIGNAL RADAR (Tweets List)
+        ===================================================== */}
+        <section className="lg:col-span-5 flex flex-col h-full min-h-0 space-y-3">
+          <div className="flex-shrink-0 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="size-2 rounded-full bg-[#00f5a0] animate-ping" />
+              <h2 className="text-sm font-bold font-mono tracking-wider text-slate-200 uppercase">
+                Signal Radar
+              </h2>
+              <span className="rounded-full bg-[#162030] px-2 py-0.5 text-[11px] font-mono text-slate-400 border border-[#232f45]">
+                {filteredTweets.length} live
+              </span>
+            </div>
+
+            {/* Filter Badges */}
+            <div className="flex items-center gap-1 text-xs">
+              <button
+                onClick={() => setFilterBadge('all')}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium ${
+                  filterBadge === 'all'
+                    ? 'bg-[#00f5a0]/15 text-[#00f5a0] border border-[#00f5a0]/30'
+                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterBadge('hot')}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
+                  filterBadge === 'hot'
+                    ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                }`}
+              >
+                <Flame className="size-3" />
+                <span>Viral</span>
+              </button>
+              <button
+                onClick={() => setFilterBadge('lead')}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
+                  filterBadge === 'lead'
+                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                }`}
+              >
+                <HelpCircle className="size-3" />
+                <span>Leads</span>
+              </button>
+              <button
+                onClick={() => setFilterBadge('debate')}
+                className={`px-2.5 py-1 rounded-lg transition-colors font-medium flex items-center gap-1 ${
+                  filterBadge === 'debate'
+                    ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                    : 'text-slate-400 hover:text-white bg-[#0e131d]'
+                }`}
+              >
+                <MessageSquare className="size-3" />
+                <span>Debate</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tweet Opportunities List */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 space-y-3">
             {filteredTweets.map((tweet) => {
-              const isSelected = selectedTweet.id === tweet.id;
+              const isSelected = selectedTweet?.id === tweet.id;
               return (
                 <div
                   key={tweet.id}
                   onClick={() => setSelectedTweet(tweet)}
-                  className={`cursor-pointer rounded-2xl p-4 transition-all duration-200 border ${
+                  className={`group relative rounded-xl border p-4 transition-all cursor-pointer ${
                     isSelected
-                      ? 'border-[#00f5a0] bg-[#111724] shadow-[0_0_20px_rgba(0,245,160,0.12)] ring-1 ring-[#00f5a0]/40'
-                      : 'border-[#1b2230] bg-[#0c1017] hover:border-slate-700 hover:bg-[#10141f]'
+                      ? 'border-[#00f5a0] bg-[#0e1622] shadow-[0_0_20px_rgba(0,245,160,0.15)] ring-1 ring-[#00f5a0]/40'
+                      : 'border-[#1a2233] bg-[#0c1017] hover:border-slate-700 hover:bg-[#0f141e]'
                   }`}
                 >
-                  {/* Tweet Header */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={tweet.author.avatar}
-                        alt={tweet.author.name}
-                        className="h-7 w-7 rounded-full object-cover border border-slate-700"
-                      />
-                      <div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-white">{tweet.author.name}</span>
-                          {tweet.author.verified && (
-                            <span className="text-[#00d2ff] text-[10px]">✓</span>
-                          )}
-                        </div>
-                        <span className="text-[11px] text-slate-400 font-mono">@{tweet.author.handle}</span>
-                      </div>
-                    </div>
+                  {/* Badge & Time Ago (<2h) */}
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      tweet.badge === 'hot'
+                        ? 'border-rose-500/30 bg-rose-500/10 text-rose-400'
+                        : tweet.badge === 'lead'
+                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                        : 'border-purple-500/30 bg-purple-500/10 text-purple-400'
+                    }`}>
+                      {tweet.badge === 'hot' && <Flame className="size-3" />}
+                      {tweet.badge === 'lead' && <HelpCircle className="size-3" />}
+                      {tweet.badge === 'debate' && <MessageSquare className="size-3" />}
+                      <span>{tweet.badgeLabel}</span>
+                    </span>
 
-                    {/* Badge */}
-                    {tweet.badge === 'hot' && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-400 border border-red-500/25 font-mono">
-                        <Flame className="h-3 w-3" /> {tweet.minutesAgo}m ago
-                      </span>
-                    )}
-                    {tweet.badge === 'lead' && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] font-semibold text-purple-400 border border-purple-500/25 font-mono">
-                        <HelpCircle className="h-3 w-3" /> Buying Intent
-                      </span>
-                    )}
-                    {tweet.badge === 'debate' && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400 border border-amber-500/25 font-mono">
-                        <MessageSquare className="h-3 w-3" /> High Debate
+                    <span className="flex items-center gap-1 text-slate-400 font-mono text-[11px]">
+                      <Clock className="size-3 text-emerald-400" />
+                      <span>{tweet.createdAtFormatted}</span>
+                    </span>
+                  </div>
+
+                  {/* Author Header */}
+                  <div className="flex items-center gap-2.5 mb-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={tweet.author.avatar}
+                      alt={tweet.author.name}
+                      className="size-8 rounded-full object-cover border border-[#232f45]"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-white truncate">{tweet.author.name}</span>
+                        {tweet.author.verified && (
+                          <span className="size-3.5 rounded-full bg-[#00d2ff] grid place-items-center text-[#07080c] text-[9px] font-bold">
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-mono">@{tweet.author.handle}</span>
+                    </div>
+                    {tweet.author.followers && (
+                      <span className="text-[10px] text-slate-400 bg-[#162030] px-2 py-0.5 rounded border border-[#243045] font-mono">
+                        {tweet.author.followers} flwrs
                       </span>
                     )}
                   </div>
 
-                  {/* Text Content */}
-                  <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">
-                    &ldquo;{tweet.text}&rdquo;
+                  {/* Tweet Text */}
+                  <p className="text-xs text-slate-300 leading-relaxed mb-3 line-clamp-3">
+                    {tweet.text}
                   </p>
 
-                  {/* Velocity Footer */}
-                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#182030] text-[11px] text-slate-400 font-mono">
-                    <span className="flex items-center gap-1 text-[#00f5a0]">
-                      <TrendingUp className="h-3 w-3" /> {tweet.velocityLikesPerHour} likes/hr
-                    </span>
-                    <span>{tweet.repliesCount} replies &bull; {tweet.likes} likes</span>
+                  {/* Velocity & Opportunity Insight */}
+                  <div className="rounded-lg bg-[#070a0f] p-2.5 border border-[#172030] space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-mono">
+                      <div className="flex items-center gap-3 text-slate-400">
+                        <span>❤️ {tweet.likes}</span>
+                        <span>🔁 {tweet.retweets}</span>
+                        <span>💬 {tweet.repliesCount}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                        <TrendingUp className="size-3" />
+                        <span>{tweet.velocityLikesPerHour} likes/hr</span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-400 italic">
+                      💡 {tweet.opportunityInsight}
+                    </p>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* RIGHT PANEL: Reply Studio & Pro Lock Box (7 Cols) */}
-        <div className="lg:col-span-7 bg-[#0b0e15] p-5 lg:p-6 flex flex-col justify-between h-[calc(100vh-4rem)] overflow-y-auto relative">
-          {/* IF CUSTOM NICHE IS ACTIVE: SHOW PRO LOCK BOX */}
-          {isCustomMode ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 my-auto">
-              <div className="size-16 rounded-3xl bg-gradient-to-br from-[#00f5a0]/20 to-[#00d2ff]/20 border border-[#00f5a0]/40 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(0,245,160,0.3)]">
-                <Lock className="size-8 text-[#00f5a0]" />
+        {/* =====================================================
+            RIGHT PANEL: REPLY STUDIO & GENERATOR
+        ===================================================== */}
+        <section className="lg:col-span-7 flex flex-col h-full min-h-0 overflow-y-auto pr-1.5 space-y-4">
+          {/* Active Tweet In-Focus Preview */}
+          <div className="rounded-2xl border border-[#1e2638] bg-[#0c1017] p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#1a2233] pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-[#00f5a0]" />
+                <h3 className="text-sm font-bold font-mono tracking-wider text-white uppercase">
+                  Reply Studio Workspace
+                </h3>
               </div>
+              <a
+                href={selectedTweet.tweetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#00f5a0] transition-colors"
+              >
+                <span>View original on X</span>
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
 
-              <span className="rounded-full bg-[#00f5a0]/10 border border-[#00f5a0]/30 px-3 py-1 text-xs font-mono font-bold text-[#00f5a0] uppercase tracking-wider">
-                Pro Feature &bull; Custom Radar Calibration
+            {/* Original Tweet Box */}
+            <div className="rounded-xl border border-[#1f293d] bg-[#0a0e16] p-4 space-y-2">
+              <div className="flex items-center gap-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedTweet.author.avatar}
+                  alt={selectedTweet.author.name}
+                  className="size-7 rounded-full object-cover"
+                />
+                <span className="text-xs font-bold text-white">{selectedTweet.author.name}</span>
+                <span className="text-xs text-slate-400 font-mono">@{selectedTweet.author.handle}</span>
+                <span className="ml-auto text-[11px] text-emerald-400 font-mono">
+                  {selectedTweet.createdAtFormatted}
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 leading-relaxed font-normal">
+                {selectedTweet.text}
+              </p>
+            </div>
+
+            {/* Generated Reply Angles (3 Strategic Options) */}
+            <div className="space-y-2.5">
+              <span className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                Select Strategic Reply Angle
               </span>
 
-              <h3 className="font-mono text-2xl sm:text-3xl font-extrabold text-white mt-3 max-w-md">
-                Upgrade to Pro for Custom Signals
-              </h3>
-
-              <p className="text-sm text-slate-400 max-w-lg mt-3 leading-relaxed">
-                You are tracking <span className="text-[#00f5a0] font-semibold">&ldquo;{customNiche || 'Custom Niche'}&rdquo;</span>. Custom niche keyword tracking, real-time 30–90m breakout detection, and automated founder-voice replies require snypeX Pro.
-              </p>
-
-              {/* 3 Pro Value Pillars */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg mt-6 text-left">
-                <div className="rounded-xl border border-white/[0.08] bg-[#121622] p-3.5">
-                  <div className="size-2 rounded-full bg-[#00f5a0] mb-2" />
-                  <p className="font-mono text-xs font-bold text-white">3 Niche Radars</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Track 3 custom product niches simultaneously.</p>
-                </div>
-                <div className="rounded-xl border border-white/[0.08] bg-[#121622] p-3.5">
-                  <div className="size-2 rounded-full bg-[#00d2ff] mb-2" />
-                  <p className="font-mono text-xs font-bold text-white">Unlimited Replies</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Generate unlimited anti-cliché founder replies.</p>
-                </div>
-                <div className="rounded-xl border border-white/[0.08] bg-[#121622] p-3.5">
-                  <div className="size-2 rounded-full bg-purple-400 mb-2" />
-                  <p className="font-mono text-xs font-bold text-white">Product DNA Engine</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Inject case studies &amp; proof points automatically.</p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 mt-8">
-                <Link
-                  href="/#pricing"
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-6 py-3 text-xs font-bold text-[#080a0f] shadow-[0_0_25px_rgba(0,245,160,0.35)] hover:opacity-95 transition-all"
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* Angle 1: Data Drop */}
+                <div
+                  onClick={() => handleSelectAngle('dataDrop')}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                    activeAngleKey === 'dataDrop'
+                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                  }`}
                 >
-                  <Sparkles className="size-4" />
-                  <span>Unlock Signals with Pro ($39/mo)</span>
-                </Link>
+                  <div className="flex items-center justify-between text-xs font-bold mb-1">
+                    <span>{replyAngles.dataDrop.title}</span>
+                    {activeAngleKey === 'dataDrop' && <Check className="size-3 text-[#00f5a0]" />}
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    {replyAngles.dataDrop.description}
+                  </p>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCustomMode(false);
-                    setCustomNiche('');
-                  }}
-                  className="rounded-xl border border-white/[0.1] bg-[#121723] px-4 py-3 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
+                {/* Angle 2: Hook */}
+                <div
+                  onClick={() => handleSelectAngle('conversationHook')}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                    activeAngleKey === 'conversationHook'
+                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                  }`}
                 >
-                  Switch Back to Sample Mode
-                </button>
+                  <div className="flex items-center justify-between text-xs font-bold mb-1">
+                    <span>{replyAngles.conversationHook.title}</span>
+                    {activeAngleKey === 'conversationHook' && <Check className="size-3 text-[#00f5a0]" />}
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    {replyAngles.conversationHook.description}
+                  </p>
+                </div>
+
+                {/* Angle 3: Stealth Plug */}
+                <div
+                  onClick={() => handleSelectAngle('stealthPlug')}
+                  className={`rounded-xl border p-3 cursor-pointer transition-all ${
+                    activeAngleKey === 'stealthPlug'
+                      ? 'border-[#00f5a0] bg-[#00f5a0]/10 text-white shadow-[0_0_15px_rgba(0,245,160,0.1)]'
+                      : 'border-[#1a2233] bg-[#0e131d] text-slate-300 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs font-bold mb-1">
+                    <span>{replyAngles.stealthPlug.title}</span>
+                    {activeAngleKey === 'stealthPlug' && <Check className="size-3 text-[#00f5a0]" />}
+                  </div>
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    {replyAngles.stealthPlug.description}
+                  </p>
+                </div>
               </div>
             </div>
-          ) : (
-            /* UNLOCKED SAMPLE MODE VIEW */
-            <div>
-              {/* Selected Tweet Full View */}
-              <div className="rounded-2xl border border-[#1e2535] bg-[#10141f] p-4 sm:p-5 mb-4">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={selectedTweet.author.avatar}
-                      alt={selectedTweet.author.name}
-                      className="h-9 w-9 rounded-full object-cover border border-slate-700"
-                    />
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-bold text-white">{selectedTweet.author.name}</span>
-                        {selectedTweet.author.verified && (
-                          <span className="text-[#00d2ff] text-xs">✓</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-400 font-mono">@{selectedTweet.author.handle} &bull; {selectedTweet.createdAtFormatted}</span>
-                    </div>
-                  </div>
 
-                  <a
-                    href={selectedTweet.tweetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#00d2ff] transition-colors"
-                  >
-                    <span>Open on X</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-
-                <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-line py-1">
-                  {selectedTweet.text}
-                </p>
-
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-[#1a2230] text-xs text-slate-400 font-mono">
-                  <span>{selectedTweet.likes} Likes</span>
-                  <span>{selectedTweet.retweets} Retweets</span>
-                  <span>{selectedTweet.repliesCount} Comments</span>
-                </div>
+            {/* Interactive Reply Editor & Actions */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+                <span>Active Angle: <strong className="text-[#00f5a0]">{replyAngles[activeAngleKey].title}</strong></span>
+                <span className={customReplyText.length > 280 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+                  {customReplyText.length} / 280 chars
+                </span>
               </div>
 
-              {/* Strategic Radar Context Box */}
-              <div className="rounded-xl border border-[#232c40] bg-[#141926] p-3.5 mb-4">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#00f5a0] mb-1">
-                  <Cpu className="h-4 w-4" />
-                  <span>Strategy Insight: Why this tweet is high value</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {selectedTweet.opportunityInsight}
-                </p>
-              </div>
+              <textarea
+                value={customReplyText}
+                onChange={(e) => setCustomReplyText(e.target.value)}
+                rows={4}
+                aria-label="Edit generated reply before posting"
+                className="w-full rounded-xl border border-[#232f45] bg-[#080c14] p-3.5 text-xs text-white leading-relaxed focus:border-[#00f5a0] focus:outline-none focus:ring-1 focus:ring-[#00f5a0]/40 font-mono"
+              />
 
-              {/* The 3 Angle Cards */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-                    Select Reply Angle:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleRegenerate}
-                    className="flex items-center gap-1 text-xs text-[#00d2ff] hover:underline"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${isRegenerating ? 'animate-spin' : ''}`} />
-                    <span>Regenerate</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  {/* 1. Data Drop */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveAngleKey('dataDrop')}
-                    className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
-                      activeAngleKey === 'dataDrop'
-                        ? 'border-[#00f5a0] bg-[#00f5a0]/10 shadow-[0_0_15px_rgba(0,245,160,0.15)] ring-1 ring-[#00f5a0]'
-                        : 'border-[#202738] bg-[#121622] hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-white flex items-center gap-1 font-mono">
-                      📊 The Data Drop
-                    </span>
-                    <span className="text-[11px] text-slate-400 mt-1 leading-snug">
-                      Benchmark facts to rank as #1 top comment.
-                    </span>
-                    <span className="mt-2 text-[10px] font-mono text-[#00f5a0]">
-                      {angles.dataDrop.estimatedLikesRank}
-                    </span>
-                  </button>
-
-                  {/* 2. Conversation Hook */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveAngleKey('conversationHook')}
-                    className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
-                      activeAngleKey === 'conversationHook'
-                        ? 'border-[#00d2ff] bg-[#00d2ff]/10 shadow-[0_0_15px_rgba(0,210,255,0.15)] ring-1 ring-[#00d2ff]'
-                        : 'border-[#202738] bg-[#121622] hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-white flex items-center gap-1 font-mono">
-                      💬 The Hook
-                    </span>
-                    <span className="text-[11px] text-slate-400 mt-1 leading-snug">
-                      Thought-provoking dialogue with author.
-                    </span>
-                    <span className="mt-2 text-[10px] font-mono text-[#00d2ff]">
-                      Engagement Magnet
-                    </span>
-                  </button>
-
-                  {/* 3. Stealth Plug */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveAngleKey('stealthPlug')}
-                    className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
-                      activeAngleKey === 'stealthPlug'
-                        ? 'border-purple-400 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] ring-1 ring-purple-400'
-                        : 'border-[#202738] bg-[#121622] hover:border-slate-600'
-                    }`}
-                  >
-                    <span className="text-xs font-bold text-white flex items-center gap-1 font-mono">
-                      🎯 Stealth Plug
-                    </span>
-                    <span className="text-[11px] text-slate-400 mt-1 leading-snug">
-                      Organic mention of {activeProduct.name}.
-                    </span>
-                    <span className="mt-2 text-[10px] font-mono text-purple-400">
-                      Direct Inbound Lead
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Live Reply Editor */}
-              <div>
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5 font-mono">
-                  <span className="text-slate-300 font-semibold">Reply Composer (Editable)</span>
-                  <span className={isOverLimit ? 'text-red-400 font-bold' : 'text-slate-400'}>
-                    {charCount} / 280 characters
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-mono">Product:</span>
+                  <span className="text-[11px] font-bold text-slate-200 bg-[#162030] px-2 py-1 rounded border border-[#232f45]">
+                    {selectedProduct.name} ({selectedProduct.tone})
                   </span>
                 </div>
-                <textarea
-                  rows={4}
-                  value={editedText}
-                  onChange={(e) => setEditedText(e.target.value)}
-                  className={`w-full rounded-xl border bg-[#0d1017] p-3.5 text-sm text-white focus:outline-none leading-relaxed resize-none ${
-                    isOverLimit
-                      ? 'border-red-500 focus:border-red-500'
-                      : 'border-[#252f42] focus:border-[#00f5a0]'
-                  }`}
-                  placeholder="Write or adjust your reply..."
-                />
-              </div>
 
-              {/* Action Bar (1-Click Post & Copy) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#1a2130] mt-4">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <CheckCircle2 className="h-4 w-4 text-[#00f5a0]" />
-                  <span>Calibrated to {activeProduct.name} ({activeProduct.tone} tone)</span>
-                </div>
-
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 rounded-xl border border-[#263044] bg-[#141926] px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-[#1b2233] transition-colors"
+                    onClick={() => handleCopy(customReplyText, activeAngleKey)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#24324c] bg-[#111827] text-xs font-semibold text-slate-200 hover:text-white hover:border-[#00f5a0]/50 transition-all"
                   >
-                    {copied ? (
+                    {copiedAngle === activeAngleKey ? (
                       <>
-                        <Check className="h-3.5 w-3.5 text-[#00f5a0]" />
+                        <Check className="size-3.5 text-[#00f5a0]" />
                         <span className="text-[#00f5a0]">Copied!</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span>Copy Text</span>
+                        <Copy className="size-3.5" />
+                        <span>Copy Reply</span>
                       </>
                     )}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handlePostOnX}
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] px-5 py-2.5 text-xs font-extrabold text-[#07080c] shadow-[0_0_20px_rgba(0,245,160,0.35)] hover:opacity-95 hover:scale-[1.02] transition-all"
+                  <a
+                    href={`https://x.com/intent/tweet?text=${encodeURIComponent(customReplyText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] text-xs font-bold text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all"
                   >
+                    <Send className="size-3.5" />
                     <span>Post on X</span>
-                    <ArrowUpRight className="h-4 w-4 stroke-[2.5]" />
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </section>
+      </main>
 
-      {/* Product DNA Modal */}
+      {/* =========================================================
+          EMAIL AUTH MODAL (2-Search Activation)
+      ========================================================= */}
+      {isEmailModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full rounded-2xl border border-[#1f2a3d] bg-[#0c1017] p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#1a2233] pb-3">
+              <div className="flex items-center gap-2">
+                <Mail className="size-5 text-[#00f5a0]" />
+                <h3 className="text-base font-bold text-white font-mono">Activate 2 Free Searches</h3>
+              </div>
+              <button
+                onClick={() => setIsEmailModalOpen(false)}
+                className="text-slate-400 hover:text-white text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Enter your email to search real-time breakout tweets in your niche under 2 hours old. Each email gets <strong>2 free searches</strong>.
+            </p>
+
+            <form onSubmit={handleEmailSubmit} className="space-y-3">
+              <div>
+                <input
+                  type="email"
+                  value={emailInputVal}
+                  onChange={(e) => setEmailInputVal(e.target.value)}
+                  placeholder="founder@yourcompany.com"
+                  autoFocus
+                  className="w-full rounded-xl border border-[#243048] bg-[#080c14] py-3 px-4 text-sm text-white placeholder-slate-500 focus:border-[#00f5a0] focus:outline-none focus:ring-1 focus:ring-[#00f5a0]"
+                />
+                {emailInputError && (
+                  <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                    <AlertCircle className="size-3" />
+                    <span>{emailInputError}</span>
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_20px_rgba(0,245,160,0.3)] transition-all flex items-center justify-center gap-2"
+              >
+                <span>Activate Free Radar Searches</span>
+                <ArrowRight className="size-3.5" />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          PRO GATE MODAL (Limit Reached)
+      ========================================================= */}
+      {isProGateOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-lg w-full rounded-2xl border border-[#2a364f] bg-[#0b0f17] p-7 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#1c2436] pb-3">
+              <div className="flex items-center gap-2 text-[#00f5a0]">
+                <Zap className="size-5" />
+                <h3 className="text-base font-bold text-white font-mono">Upgrade to Pro</h3>
+              </div>
+              <button
+                onClick={() => setIsProGateOpen(false)}
+                className="text-slate-400 hover:text-white text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-mono">
+                <span>Free Trial Limit Reached (2/2 Searches Used)</span>
+              </div>
+              <h2 className="text-xl font-bold text-white font-mono">
+                Unlock Unlimited Real-Time Radar Searches
+              </h2>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Monitor break-out conversations 24/7 across your exact customer ICP and generate high-authority replies before anyone else.
+              </p>
+            </div>
+
+            {/* Pricing Card */}
+            <div className="rounded-xl border border-[#00f5a0]/40 bg-[#00f5a0]/5 p-4 space-y-3">
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white font-mono">Pro Founder Tier</h4>
+                  <p className="text-[11px] text-slate-400">Unlimited searches + 24/7 Signal Radar</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-white font-mono">$29</span>
+                  <span className="text-xs text-slate-400">/mo</span>
+                </div>
+              </div>
+
+              <ul className="text-xs text-slate-300 space-y-1.5 font-sans">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="size-3.5 text-[#00f5a0]" />
+                  <span>Unlimited live X signal searches for any niche</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="size-3.5 text-[#00f5a0]" />
+                  <span>Full 3-angle AI reply generation engine</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="size-3.5 text-[#00f5a0]" />
+                  <span>Custom Product DNA & Tone Profiles</span>
+                </li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                alert('Stripe Checkout will be connected in next step!');
+              }}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00f5a0] to-[#00d2ff] font-bold text-xs text-[#07080c] hover:opacity-95 shadow-[0_0_25px_rgba(0,245,160,0.4)] transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+            >
+              <span>Upgrade Now — Instant Access</span>
+              <ArrowRight className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          PRODUCT DNA MODAL
+      ========================================================= */}
       <ProductDnaModal
         isOpen={isDnaModalOpen}
         onClose={() => setIsDnaModalOpen(false)}
-        product={activeProduct}
-        onSave={handleSaveDna}
+        product={selectedProduct}
+        onSave={handleSaveProduct}
       />
     </div>
   );

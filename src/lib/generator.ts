@@ -5,8 +5,10 @@ export function generateReplyAngles(
   product: ProductDNA
 ): GeneratedReplyAngles {
   const handle = tweet.author.handle;
+  const tweetText = tweet.text.toLowerCase();
+  const shortPitch = product.tagline.replace(/\.$/, '');
 
-  // Tailored responses for the mock tweets to feel incredibly smart & realistic
+  // Specific bespoke replies for demo tweets if matched by ID
   if (tweet.id === 'tweet-1') {
     return {
       dataDrop: {
@@ -17,13 +19,13 @@ export function generateReplyAngles(
         statsCited: 'OpenView SaaS Benchmark 2024',
       },
       conversationHook: {
-        title: '💬 The Conversation Hook',
+        title: '🎣 The Conversation Hook',
         description: 'A sharp, thought-provoking question to get the author to reply back.',
         text: `@${handle} The wild part is how many $10k MRR tools copy Salesforce workflows thinking it makes them look 'enterprise'. At what MRR threshold do you think gating pricing actually starts making mathematical sense?`,
         goal: 'Prompt original author engagement',
       },
       stealthPlug: {
-        title: '🎯 The Stealth Plug',
+        title: '🥷 The Stealth Plug',
         description: 'Addresses the problem first, then smoothly introduces your product.',
         text: `We ran a 2-week split test removing the demo form on our landing page: bounce rate fell 44% and checkout velocity tripled. Kept everything transparent while building ${product.name} and never looked back.`,
         plugAngle: 'Real split-test proof',
@@ -31,74 +33,74 @@ export function generateReplyAngles(
     };
   }
 
-  if (tweet.id === 'tweet-2') {
+  // Dynamic context-aware generator based on tweet badge, niche, and text
+  if (tweet.badge === 'lead' || tweetText.includes('recommend') || tweetText.includes('looking for') || tweetText.includes('tool')) {
     return {
       dataDrop: {
         title: '📊 The Data Drop',
-        description: 'Hard benchmark statistics to claim the #1 upvoted comment.',
-        text: `Top 1% creator accounts on X get 60-70% of their total profile visits from replies under other viral posts, not their own standalone tweets. The key is never dropping plain links—lead with insight, let bio do the selling.`,
-        estimatedLikesRank: 'Top 3 Comment',
-        statsCited: 'Audience Lab Analysis',
+        description: 'Hard data benchmark to position as the domain authority.',
+        text: `Data across 250+ indie builders showed that 78% of switching friction comes from bloated legacy features nobody uses. Teams switching to lightweight specialized tools save an avg of 14 hours/month.`,
+        estimatedLikesRank: 'Top Authority',
+        statsCited: 'SaaS Efficiency Index',
       },
       conversationHook: {
-        title: '💬 The Conversation Hook',
-        description: 'A sharp, thought-provoking question to get the author to reply back.',
-        text: `@${handle} The biggest mistake most founders make is treating X like an RSS feed. Have you noticed higher conversions from in-thread opt-in lead magnets vs bio link clicks lately?`,
-        goal: 'Spark founder debate',
+        title: '🎣 The Conversation Hook',
+        description: 'Clarifying question to stand out from generic pitch bots.',
+        text: `@${handle} What is the #1 dealbreaker in your current workflow? Most tools overcomplicate the setup instead of solving the core bottleneck.`,
+        goal: 'Prompt author reply',
       },
       stealthPlug: {
-        title: '🎯 The Stealth Plug',
-        description: 'Addresses the problem first, then smoothly introduces your product.',
-        text: `Our whole stack is: 1) Monitor niche breakout tweets in their first 90m, 2) Drop a data point that adds real context (zero bot links), 3) Pinned post in bio handles conversion. Built ${product.name} specifically to automate the timing radar.`,
-        plugAngle: 'Direct workflow breakdown',
+        title: '🥷 The Stealth Plug',
+        description: 'Value-first answer leading into your product.',
+        text: `We ran into this exact headache repeatedly, which is why we built ${product.name} (${shortPitch}). Zero fluff, takes 60 seconds to set up, and built specifically for teams facing this problem.`,
+        plugAngle: 'Direct solution recommendation',
       },
     };
   }
 
-  if (tweet.id === 'tweet-3') {
+  if (tweet.badge === 'debate' || tweetText.includes('vs') || tweetText.includes('unpopular') || tweetText.includes('agree')) {
     return {
       dataDrop: {
         title: '📊 The Data Drop',
-        description: 'Hard benchmark statistics to claim the #1 upvoted comment.',
-        text: `Audience-first founders spend an average of 9 months before monetizing. Product-first micro-SaaS builders with a sharp distribution habit hit first revenue in 18 days. Distribution speed beats audience size every time.`,
-        estimatedLikesRank: 'Top 5 Comment',
-        statsCited: 'Micro-SaaS State of the Union',
+        description: 'Objective numbers to anchor the debate.',
+        text: `Distribution speed beats audience size every single time. Founders who engage on high-signal conversations in their first 90m convert profile visits at 4.2x higher rate than standalone scheduled posts.`,
+        estimatedLikesRank: 'Top 3 Comment',
+        statsCited: 'Growth Velocity Benchmark',
       },
       conversationHook: {
-        title: '💬 The Conversation Hook',
-        description: 'A sharp, thought-provoking question to get the author to reply back.',
-        text: `@${handle} Strong agree. Building an audience without a specific tool creates a community of cheerleaders, not buyers. Do you think this shifted because distribution channels got more fragmented?`,
+        title: '🎣 The Conversation Hook',
+        description: 'Nuanced counter-perspective to trigger thread engagement.',
+        text: `@${handle} 100% agreed on the core premise. Do you think this dynamic shifted because distribution channels got more fragmented, or because customer attention spans halved?`,
         goal: 'Validate author & expand nuance',
       },
       stealthPlug: {
-        title: '🎯 The Stealth Plug',
-        description: 'Addresses the problem first, then smoothly introduces your product.',
-        text: `100%. We had zero followers when launching. Instead of trying to become full-time content creators, we just monitored live conversations around our exact problem using ${product.name} and found our first 50 customers in 3 weeks.`,
-        plugAngle: 'Zero-to-one traction case study',
+        title: '🥷 The Stealth Plug',
+        description: 'Founder perspective with real proof.',
+        text: `We tested both approaches while building ${product.name}. Early on we had zero followers, but focusing purely on high-velocity conversations drove our first 50 paying customers in under a month.`,
+        plugAngle: 'Founder case study',
       },
     };
   }
 
-  // Generic fallback generator based on tweet and product
-  const shortPitch = product.tagline.replace(/\.$/, '');
+  // Default Viral Velocity / High Signal Angle
   return {
     dataDrop: {
       title: '📊 The Data Drop',
-      description: 'Authority and facts focused on the tweet theme.',
-      text: `Across high-growth tech sectors, organic comment sections on X generate 4x higher CTR than sponsored banner ads when backed by real data points. High signal always beats noise.`,
+      description: 'Authority statistics focused on the niche.',
+      text: `Across high-growth tech sectors, organic comments that add real data points generate 4x higher CTR than sponsored ads. High signal always beats generic noise.`,
       estimatedLikesRank: 'High Authority',
-      statsCited: 'Social Inbound Index',
+      statsCited: 'Social Inbound Index 2025',
     },
     conversationHook: {
-      title: '💬 The Conversation Hook',
+      title: '🎣 The Conversation Hook',
       description: 'Engaging premise to prompt conversation.',
-      text: `@${handle} This is an underrated angle. Most people look at the surface outcome, but the real leverage is in the execution cadence. What has been the biggest bottleneck you observed here?`,
+      text: `@${handle} Underrated take. Most people look at the surface outcome, but the real leverage is execution cadence. What has been the biggest bottleneck you encountered here?`,
       goal: 'Author response',
     },
     stealthPlug: {
-      title: '🎯 The Stealth Plug',
+      title: '🥷 The Stealth Plug',
       description: 'Adds immediate value and introduces product organically.',
-      text: `Spot on. We run into this exact dynamic every day while building ${product.name} (${shortPitch}). The founders who execute early on live signals always win the distribution game.`,
+      text: `Spot on. We run into this dynamic every single day while building ${product.name} (${shortPitch}). Founders who act early on live signals always win the distribution game.`,
       plugAngle: 'Contextual founder perspective',
     },
   };
