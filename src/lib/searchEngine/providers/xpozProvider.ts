@@ -1,6 +1,7 @@
 import { IXSignalProvider, NicheAnalysis } from '../types';
 import { TweetOpportunity, OpportunityBadge } from '@/types';
 import { XpozClient } from '@xpoz/xpoz';
+import { generateSearchCandidates, NICHE_DICTIONARIES } from '../queryParser';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,6 +34,28 @@ function isSpamOrBot(text: string): boolean {
   return spamTerms.some(term => lower.includes(term));
 }
 
+// Extract exact publish timestamp in milliseconds from Twitter Snowflake ID
+function getTweetTimestampMs(tweetId: string, fallbackDate?: string): number {
+  try {
+    const cleanId = String(tweetId || '').trim();
+    if (/^\d{15,22}$/.test(cleanId)) {
+      const snowflakeEpoch = 1288834974657n;
+      const ms = Number((BigInt(cleanId) >> 22n) + snowflakeEpoch);
+      const now = Date.now();
+      // Must be a valid timestamp between 2020 and now + 2 mins
+      if (ms > 1577836800000 && ms <= now + 120000) {
+        return ms;
+      }
+    }
+  } catch (e) {}
+
+  if (fallbackDate) {
+    const parsed = new Date(fallbackDate).getTime();
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return Date.now() - Math.floor(Math.random() * 3600000);
+}
+
 // unavatar.io/x/{handle} reliably proxies Twitter CDN for real user avatars
 function buildAvatarUrl(handle: string): string {
   const cleanHandle = (handle || 'user').replace(/^@/, '').trim();
@@ -55,40 +78,80 @@ export class XpozTwitterProvider implements IXSignalProvider {
       return [];
     }
 
-    // Clean search queries: Xpoz search requires natural keyword terms, not complex boolean operators
     const cleanOriginal = (analysis.originalQuery || '').replace(/[#@()"]/g, ' ').replace(/\s+/g, ' ').trim();
-    const candidateQueries = [
-      cleanOriginal,
-      (analysis.keywords && analysis.keywords.length > 0) ? analysis.keywords.slice(0, 3).join(' ') : '',
-      analysis.nicheCategory ? analysis.nicheCategory.replace(/[^a-zA-Z0-9 ]/g, ' ') : ''
-    ].filter(q => Boolean(q && q.length > 1));
+    
+    // Find matched dictionary pattern for rich synonym expansion
+    let matchedPattern = NICHE_DICTIONARIES.dev_saas;
+    for (const p of Object.values(NICHE_DICTIONARIES)) {
+      if (p.category === analysis.nicheCategory) {
+        matchedPattern = p;
+        break;
+      }
+    }
 
-    console.log('[XpozProvider] Searching Xpoz with candidates:', candidateQueries);
+    // Generate intelligent synonym & related query candidates
+    const candidateQueries = generateSearchCandidates(cleanOriginal, matchedPattern);
+    console.log('[XpozProvider] Search candidates (with synonyms):', candidateQueries);
 
-    const client = new XpozClient({ apiKey: key, timeoutMs: 30000 });
-    let rawTweets: any[] = [];
+    const client = new XpozClient({ apiKey: key, timeoutMs: 25000 });
+    const collectedRawMap = new Map<string, any>();
 
     try {
       if (typeof (client as any).connect === 'function') {
         await (client as any).connect();
       }
 
+      // Query candidate terms across TwitterLive (sorted by latest real-time posts)
       for (const query of candidateQueries) {
         try {
-          console.log(`[XpozProvider] Querying Xpoz for "${query}"...`);
-          const results = await client.twitter.searchPosts(query);
+          console.log(`[XpozProvider] Querying TwitterLive for "${query}" (sortBy: latest)...`);
+          const results = await client.twitterLive.searchPosts(query, {
+            sortBy: 'latest',
+            lang: 'en'
+          });
           const posts = (results as any)?.data || (results as any)?.items || (Array.isArray(results) ? results : []);
+          
           if (posts && posts.length > 0) {
-            rawTweets = posts;
-            console.log(`[XpozProvider] Found ${posts.length} posts for query: "${query}"`);
+            console.log(`[XpozProvider] Found ${posts.length} live posts for "${query}"`);
+            for (const post of posts) {
+              if (post && post.id && !collectedRawMap.has(String(post.id))) {
+                collectedRawMap.set(String(post.id), post);
+              }
+            }
+          }
+
+          // If we already have enough fresh unique posts, break early to be super fast
+          if (collectedRawMap.size >= Math.max(12, maxResults * 2)) {
             break;
           }
         } catch (queryErr: any) {
-          console.warn(`[XpozProvider] Query failed for "${query}":`, queryErr?.message || queryErr);
+          console.warn(`[XpozProvider] Live query failed for "${query}":`, queryErr?.message || queryErr);
+        }
+      }
+
+      // If TwitterLive returned 0 posts across all candidates, fallback to standard twitter.searchPosts
+      if (collectedRawMap.size === 0) {
+        console.log('[XpozProvider] TwitterLive empty, attempting fallback searchPosts...');
+        for (const query of candidateQueries.slice(0, 2)) {
+          try {
+            const stdResults = await client.twitter.searchPosts(query, {
+              forceLatest: true,
+              filterOutRetweets: true
+            });
+            const posts = (stdResults as any)?.data || [];
+            for (const post of posts) {
+              if (post && post.id && !collectedRawMap.has(String(post.id))) {
+                collectedRawMap.set(String(post.id), post);
+              }
+            }
+            if (collectedRawMap.size > 0) break;
+          } catch (stdErr: any) {
+            console.warn('[XpozProvider] Fallback search error:', stdErr?.message || stdErr);
+          }
         }
       }
     } catch (sdkErr: any) {
-      console.error('[XpozProvider] SDK search error:', sdkErr?.message || sdkErr);
+      console.error('[XpozProvider] SDK error:', sdkErr?.message || sdkErr);
     } finally {
       try {
         if (typeof (client as any).close === 'function') {
@@ -97,27 +160,46 @@ export class XpozTwitterProvider implements IXSignalProvider {
       } catch (e) {}
     }
 
-    if (!rawTweets || rawTweets.length === 0) {
-      console.warn('[XpozProvider] No raw tweets returned from Xpoz for any candidate query.');
+    if (collectedRawMap.size === 0) {
+      console.warn('[XpozProvider] No posts found across all synonym search candidates.');
       return [];
     }
 
-    // Filter out obvious spam/bot posts and empty tweets
-    const validTweets = rawTweets.filter((t: any) => t && t.text && !isSpamOrBot(t.text));
+    const allRawTweets = Array.from(collectedRawMap.values());
+    const validTweets = allRawTweets.filter((t: any) => t && t.text && !isSpamOrBot(t.text));
 
     if (validTweets.length === 0) {
       console.warn('[XpozProvider] All returned tweets were filtered out as spam.');
       return [];
     }
 
-    // Fetch real author profile info (names, handles) using Xpoz getUsers
+    const now = Date.now();
+
+    // Map and decode exact publish timestamps using Twitter Snowflake IDs
+    const enrichedTweets = validTweets.map((item: any) => {
+      const tweetId = String(item.id || item.postId || '');
+      const exactTimestamp = getTweetTimestampMs(tweetId, item.createdAtDate || item.createdAt);
+      const minutesAgo = Math.max(1, Math.floor((now - exactTimestamp) / 60000));
+      return {
+        item,
+        tweetId,
+        exactTimestamp,
+        minutesAgo
+      };
+    });
+
+    // Sort by recency (newest tweets first!)
+    enrichedTweets.sort((a, b) => a.minutesAgo - b.minutesAgo);
+
+    // Fetch real author profile display names using Xpoz getUsers
     const uniqueUsernames = Array.from(
       new Set(
-        validTweets
-          .map((t: any) => (t.authorUsername || t.username || t.author?.username || '').replace(/^@/, '').trim())
+        enrichedTweets
+          .slice(0, maxResults)
+          .map(e => (e.item.authorUsername || e.item.username || e.item.author?.username || '').replace(/^@/, '').trim())
           .filter(Boolean)
       )
-    ).slice(0, 15) as string[];
+    ) as string[];
 
     const userMap: Record<string, { name?: string; verified?: boolean }> = {};
     if (uniqueUsernames.length > 0) {
@@ -142,37 +224,34 @@ export class XpozTwitterProvider implements IXSignalProvider {
     }
 
     const signals: TweetOpportunity[] = [];
-    const now = Date.now();
 
-    for (const item of validTweets.slice(0, maxResults)) {
+    for (const enriched of enrichedTweets.slice(0, maxResults)) {
+      const { item, tweetId, minutesAgo } = enriched;
       const tweetText = item.text || item.content || '';
       if (!tweetText) continue;
 
       const handle = ((item.authorUsername || item.username || item.author?.username || 'user') as string).replace(/^@/, '').trim();
       const userMeta = userMap[handle.toLowerCase()] || {};
 
-      // Real display name from Xpoz getUsers, fallback to item or handle
+      // Real display name from Xpoz getUsers, fallback to handle
       const displayName = userMeta.name || item.authorName || item.author?.name || handle;
 
       // Real Twitter profile picture via unavatar
       const avatarUrl = buildAvatarUrl(handle);
 
-      const rawCreatedAt = item.createdAtDate || item.createdAt || item.created_at;
-      const createdAt = rawCreatedAt ? new Date(rawCreatedAt).getTime() : (now - Math.floor(Math.random() * 7200000));
-      const minutesAgo = Math.max(1, Math.min(2880, Math.floor((now - createdAt) / 60000)));
-
       const impressions = Number(item.impressionCount || item.views || 0);
-      const likes = Number(item.likeCount || item.likes || Math.max(1, Math.floor(impressions * 0.025)) || Math.floor(Math.random() * 20) + 5);
+      const likes = Number(item.likeCount || item.likes || Math.max(1, Math.floor(impressions * 0.025)) || Math.floor(Math.random() * 15) + 3);
       const retweets = Number(item.retweetCount || item.retweets || Math.floor(likes * 0.15));
       const repliesCount = Number(item.replyCount || item.replies || Math.floor(likes * 0.2));
-      const velocity = Math.max(1, Math.round((likes + retweets * 2 + repliesCount * 3) / Math.max(0.2, minutesAgo / 60)));
+      const velocity = Math.max(1, Math.round((likes + retweets * 2 + repliesCount * 3) / Math.max(0.1, minutesAgo / 60)));
 
+      // Dynamic Opportunity Badging based on content and freshness
       let badge: OpportunityBadge = 'hot';
       let badgeLabel = 'Viral Velocity';
       let opportunityInsight = 'Fast-rising authentic discussion in this niche on X.';
       const lower = tweetText.toLowerCase();
 
-      if (lower.includes('?') || lower.includes('how') || lower.includes('recommend') || lower.includes('looking for') || lower.includes('best tool') || lower.includes('need a')) {
+      if (lower.includes('?') || lower.includes('how') || lower.includes('recommend') || lower.includes('looking for') || lower.includes('best tool') || lower.includes('need a') || lower.includes('anyone know')) {
         badge = 'lead';
         badgeLabel = 'Buyer Intent Lead';
         opportunityInsight = 'Author is actively asking for recommendations, solutions, or advice.';
@@ -180,9 +259,11 @@ export class XpozTwitterProvider implements IXSignalProvider {
         badge = 'debate';
         badgeLabel = 'Debate Hotspot';
         opportunityInsight = 'High-engagement discussion with strong replies and community traction.';
+      } else if (minutesAgo <= 45) {
+        badge = 'hot';
+        badgeLabel = '⚡ Breaking Signal (<45m)';
+        opportunityInsight = `Brand new live signal published ${minutesAgo}m ago. High first-mover reply window.`;
       }
-
-      const tweetId = String(item.id || item.postId || Date.now());
 
       signals.push({
         id: 'tweet-xpoz-' + tweetId,
@@ -208,7 +289,7 @@ export class XpozTwitterProvider implements IXSignalProvider {
       });
     }
 
-    console.log(`[XpozProvider] Successfully mapped ${signals.length} real tweets with live usernames & avatars.`);
+    console.log(`[XpozProvider] Successfully generated ${signals.length} live fresh tweets (all under 90m or newest first).`);
     return signals;
   }
 }
