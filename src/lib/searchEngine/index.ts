@@ -1,3 +1,4 @@
+import { XpozTwitterProvider } from './providers/xpozProvider';
 import { ApifyTwitterProvider } from './providers/apifyProvider';
 import { understandNiche } from './queryParser';
 import { RapidApiTwitterProvider } from './providers/rapidApiProvider';
@@ -7,6 +8,7 @@ import { IXSignalProvider, SearchSignalRequest, SearchSignalResponse } from './t
 import { checkEmailUsage, recordEmailSearch, isValidEmail, isUnlimitedEmail } from './usageTracker';
 
 const providers: IXSignalProvider[] = [
+  new XpozTwitterProvider(),
   new ApifyTwitterProvider(),
   new RapidApiTwitterProvider(),
   new TwitterApiIoProvider(),

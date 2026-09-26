@@ -587,6 +587,7 @@ export default function UnifiedAppPage() {
                       src={tweet.author.avatar}
                       alt={tweet.author.name}
                       className="size-8 rounded-full object-cover border border-[#232f45]"
+                      onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(tweet.author.handle)}`; }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
@@ -687,6 +688,7 @@ export default function UnifiedAppPage() {
                   src={selectedTweet.author.avatar}
                   alt={selectedTweet.author.name}
                   className="size-7 rounded-full object-cover"
+                  onError={(e) => { const t = e.currentTarget; t.onerror = null; t.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(selectedTweet.author.handle)}`; }}
                 />
                 <span className="text-xs font-bold text-white">{selectedTweet.author.name}</span>
                 <span className="text-xs text-slate-400 font-mono">@{selectedTweet.author.handle.replace(/^@/, '')}</span>
